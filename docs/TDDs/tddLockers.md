@@ -1,6 +1,6 @@
 | identifiacion | 1 |
 | estado | Propuesto |
-| autor | Brenda Belen Conti |
+| autor | Brenda Conti |
 | fechas | 2026-05-02 |
 | titulo | Gestion de Locker | 
 
