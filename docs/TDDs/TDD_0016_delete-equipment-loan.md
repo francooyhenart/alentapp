@@ -27,46 +27,47 @@ Permitir la cancelación de préstamos registrados erróneamente o que necesitan
 - **Escenario de fallo**: El sistema no puede conectarse a la base de datos; retorna error 500 Internal Server Error.
 
 
-#### Historia de Usuario 3: Preservación del Registro
+#### Historia de Usuario 2: Preservación del Registro
 - **Como** administrador del sistema, **quiero** que los préstamos cancelados permanezcan en la base de datos, **para** mantener auditoría completa.
 - **Escenario de éxito**: El préstamo cancelado permanece en la base de datos con estado "Canceled" y puede ser consultado en el historial.
 - **Escenario de fallo**: No aplica - nunca se elimina físicamente.
+
+### 1.4. Criterios Generales
+
+1. Un préstamo con estado `Returned` o `Damaged` no puede ser anulado bajo ninguna circunstancia.
+2. La eliminación es **lógica**: el registro nunca se borra físicamente de la tabla `EquipmentLoan`.
+3. El campo `isActive` debe pasar a `false` y `status` a `Canceled` en la misma transacción.
+4. Solo usuarios con rol administrativo pueden ejecutar la baja lógica.
+5. Al anular un préstamo, el material asociado queda inmediatamente disponible para un nuevo registro.
 
 ---
 
 ## 2. Diseño Técnico (El "Cómo")
 
-### 2.1. Modelo de Dominio (Entidad)
+### 2.1. Modelo de Dominio
 
-**Ubicación:** `@alentapp/api/src/domain/entities/EquipmentLoan.ts`
+Se definirá la entidad **EquipmentLoan** con las siguientes propiedades y restricciones, asegurando la persistencia de los datos históricos tras su anulación lógica[cite: 1]:
 
-**IMPORTANTE: Se agrega el estado "Canceled"**
-
-```typescript
-export interface EquipmentLoan {
-  id: string;
-  itemName: string;
-  status: 'Loaned' | 'Returned' | 'Damaged' | 'Canceled';  //Se agrega Canceled
-  loanDate: Date;
-  returnDate?: Date;
-  canceledDate?: Date;
-  memberId: string;
-  notes?: string;
-}
-```
+| Campo | Tipo | Descripción | Estado en Baja Lógica |
+|---|---|---|---|
+| `id` | UUID | Identificador único universal generado por el sistema. | **Inmutable** |
+| `itemName` | string | Nombre o descripción del material deportivo prestado. | **Inmutable** |
+| `status` | enum | Estados posibles: `Loaned`, `Returned`, `Damaged`, `Canceled`. | Cambia a **`Canceled`** |
+| `isActive` | boolean | Flag de visibilidad. Determina si el registro es operativo. | Cambia a **`false`** |
+| `loanDate` | DateTime | Fecha y hora original en la que se realizó el préstamo. | **Inmutable** |
+| `returnDate` | DateTime / NULL | Fecha de devolución. Permanece en NULL si nunca se devolvió. | **Inmutable** (NULL) |
+| `canceledDate`| DateTime / NULL | Fecha y hora en la que se ejecutó la baja lógica. | Se registra **`now()`** |
+| `memberId` | UUID | Identificador del socio que solicitó el material. | **Inmutable** |
+| `notes` | string / NULL | Observaciones adicionales o motivo de la cancelación. | **Actualizado** con motivo |
 
 ### 2.2. Contrato de API (Shared DTOs)
 
 **Ubicación:** `@alentapp/shared/dtos`
 
 #### Endpoint: Cancelar Préstamo
-**Método:** `DELETE /api/v1/equipment-loans/:id`
-
-O alternativamente:
-
 **Método:** `PATCH /api/v1/equipment-loans/:id/cancel`
 
-**Request Body** (`CancelEquipmentLoanRequest`) - Opcional:
+**Request Body** (`CancelEquipmentLoanRequest`)
 ```typescript
 {
   reason?: string;  // Motivo de la cancelación
@@ -79,6 +80,7 @@ O alternativamente:
   id: string;
   itemName: string;
   status: 'Canceled';
+  isActive: false;
   loanDate: string;
   returnDate: null;
   canceledDate: string;   //fecha actual
@@ -98,6 +100,7 @@ model EquipmentLoan {
   id            String    @id @default(uuid())
   itemName      String
   status        String    // "Loaned", "Returned", "Damaged", "Canceled"
+  isActiva      Boolean   // Nueva colunma
   loanDate      DateTime  @default(now())
   returnDate    DateTime?
   canceledDate  DateTime? // Nueva columna
@@ -205,3 +208,27 @@ export interface EquipmentLoanRepository {
   "code": "LOAN_NOT_FOUND"
 }
 ```
+
+---
+
+## 5. Observaciones adicionales
+
+---
+
+## 6. Componentes de Arquitectura Hexagonal
+
+- **Domain**: Entidad `EquipmentLoan` y reglas de negocio para la eliminación lógica: restricción de anulación para préstamos ya procesados (`Returned` o `Damaged`), gestión del flag de visibilidad `isActive` y registro mandatorio de la fecha de cancelación.
+
+- **Application**: Caso de uso `DeleteEquipmentLoanUseCase`, responsable de validar las precondiciones de integridad (verificar que el préstamo siga en estado `Loaned`) y orquestar la actualización de los atributos de baja lógica sin invocar métodos de borrado físico.
+
+- **Infrastructure**: Controlador HTTP para `PATCH /api/v1/equipment-loans/{id}/cancel` en Fastify con validación de parámetros vía `zod`, y repositorio implementado con Prisma que asegura la persistencia de los estados históricos y aplica filtros de exclusión por `isActive` en las consultas operativas.
+
+---
+
+## 7. Plan de Implementación
+
+1. Actualizar el modelo `EquipmentLoan` en el esquema de Prisma para incluir los campos `isActive` (boolean) y `canceledDate` (DateTime?).
+2. Implementar en la entidad `EquipmentLoan` las validaciones necesarias para impedir la transición a `Canceled` si el préstamo ya posee una fecha de devolución registrada.
+3. Desarrollar `DeleteEquipmentLoanUseCase` asegurando que la operación de "borrado" sea en realidad una actualización parcial de los campos de visibilidad y estado.
+4. Configurar la ruta `PATCH` integrando middlewares de autorización para restringir la acción a perfiles administrativos y validar el formato UUID del identificador.
+5. Realizar pruebas manuales con un cliente HTTP (Postman/Insomnia) para constatar que, tras la baja, el registro permanece en la base de datos pero deja de ser visible en los listados generales del sistema.

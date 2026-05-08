@@ -31,25 +31,32 @@ Permitir el registro de nuevos préstamos de material deportivo a socios del clu
 - **Escenario de éxito**: El sistema valida correctamente que el socio es "Senior" o "Lifetime" y permite el registro.
 - **Escenario de fallo**: Un socio de categoría "Cadet" intenta solicitar material; el sistema rechaza con error 403 Forbidden: "Los socios de categoría Cadet no están autorizados para solicitar préstamos de equipamiento".
 
+### 1.4. Criterios Generales
+
+1. Solo socios de categoría **Senior** o **Lifetime** están habilitados para solicitar préstamos.
+2. Todo préstamo nuevo se registra inicialmente con el estado **Loaned**.
+3. El campo `loanDate` se genera automáticamente con la fecha y hora del sistema al momento de la creación.
+4. Un préstamo no puede ser registrado si el `memberId` no corresponde a un socio activo en el sistema.
+5. Solo usuarios con rol **Administrativo** pueden registrar nuevos préstamos.
+6. El campo `itemName` debe tener una longitud mínima de 3 caracteres para evitar registros ambiguos.
+
 ---
 
 ## 2. Diseño Técnico (El "Cómo")
 
-### 2.1. Modelo de Dominio (Entidad)
+### 2.1. Modelo de Dominio
 
-**Ubicación:** `@alentapp/api/src/domain/entities/EquipmentLoan.ts`
+Se definirá la entidad **EquipmentLoan** con las siguientes propiedades y restricciones:
 
-```typescript
-export interface EquipmentLoan {
-  id: string;
-  itemName: string;
-  status: 'Loaned' | 'Returned' | 'Damaged';
-  loanDate: Date;
-  returnDate?: Date;
-  memberId: string;
-  notes?: string;
-}
-```
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | UUID | Identificador único universal generado por el sistema. |
+| `itemName` | string | Nombre o descripción del material prestado (mín. 3 caracteres). |
+| `status` | enum | Estado del préstamo. Valores: `Loaned`, `Returned`, `Damaged`. |
+| `loanDate` | DateTime | Fecha y hora en la que se realiza el préstamo. |
+| `returnDate` | DateTime / NULL | Fecha de devolución. Se inicializa en NULL. |
+| `memberId` | UUID | Identificador del socio que solicita el material. |
+| `notes` | string / NULL | Observaciones adicionales sobre el estado del material. |
 
 ### 2.2. Contrato de API (Shared DTOs)
 
@@ -208,3 +215,27 @@ export interface MemberRepository {
   "code": "VALIDATION_ERROR"
 }
 ```
+
+---
+
+## 5. Observaciones adicionales
+
+---
+
+## 6. Componentes de Arquitectura Hexagonal
+
+**Domain**: Entidad `EquipmentLoan` y reglas de negocio: validación de categoría de socio (Senior/Lifetime), estado inicial obligatorio `Loaned`, y validación de atributos.
+
+**Application**: Caso de uso `CreateEquipmentLoanUseCase`, encargado de orquestar la validación de identidad, la aplicación de restricciones y la llamada al puerto de persistencia.
+
+**Infrastructure**: Controlador HTTP para `POST /api/v1/equipment-loans`, middleware de autenticación (Admin check) y repositorios implementados con Prisma.
+
+---
+
+## 7. Plan de Implementación
+
+1. Definir la entidad de dominio e interfaz `EquipmentLoanRepository`.
+2. Implementar `CreateEquipmentLoanUseCase` con las validaciones de negocio.
+3. Actualizar el esquema de Prisma y ejecutar la migración.
+4. Registrar la ruta en Fastify con validación de esquema y middleware de rol.
+5. Realizar pruebas de integración cubriendo escenarios de éxito y restricciones.
