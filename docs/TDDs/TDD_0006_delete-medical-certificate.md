@@ -24,7 +24,7 @@ Permitir al administrador del Club Alentapp dar de baja lógica un certificado m
 
 ### 1.4. Criterios Generales de Aceptación
 
-*   El sistema debe validar que el parámetro `id` recibido sea un UUID válido.
+*   El sistema debe validar que el parámetro `id` esté presente y sea un UUID válido.
 *   El sistema debe validar que el certificado identificado por `id` exista en la base de datos.
 *   El sistema debe tratar los certificados ya eliminados (`deletedAt IS NOT NULL`) como inexistentes, devolviendo el mismo error que si nunca hubieran existido.
 *   El sistema debe marcar el campo `deletedAt` con la fecha y hora actuales en el momento de la baja, sin modificar ningún otro campo del certificado.
