@@ -34,5 +34,29 @@ model Member {
     status     MemberStatus   @default(Activo)
     created_at DateTime       @default(now())
 
+    equipmentLoans EquipmentLoan[]
+
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
+}
+
+model EquipmentLoan {
+  id            String    @id @default(uuid())
+  itemName      String    @map("item_name")
+  status        String    // "Loaned", "Returned", "Damaged", "Canceled"
+  isActive      Boolean   @default(true) @map("is_active")
+  loanDate      DateTime  @default(now()) @map("loan_date")
+  returnDate    DateTime? @map("return_date")
+  canceledDate  DateTime? @map("canceled_date")
+  notes         String?
+  
+  member        Member    @relation(fields: [memberId], references: [id])
+  memberId      String    @map("member_id")
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@index([memberId])
+  @@index([status])
+  @@index([isActive])
+  @@map("equipment_loans")
 }
