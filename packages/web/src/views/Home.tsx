@@ -24,6 +24,7 @@ export function HomeView() {
       </VStack>
 
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="8">
+        {/* Tarjeta oficial de Miembros de tus amigos */}
         <SectionCard 
           title="Miembros"
           description="Administra el padrón de socios, sus categorías, estados de cuenta y datos personales."
@@ -31,7 +32,7 @@ export function HomeView() {
           icon={LuUsers}
         />
 
-        {/* ¡Tu nueva sección integrada impecable! */}
+        {/* Tu nueva sección integrada impecable */}
         <SectionCard 
           title="Casilleros"
           description="Gestioná la asignación, reserva, mantenimiento y liberación de casilleros en las sedes."

@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { MembersView } from "./views/Members";
 import { HomeView } from "./views/Home";
-import { LockersView } from "./views/Lockers"; // ¡Tu nueva vista importada!
+import { LockersView } from "./views/Lockers"; 
 import Layout from "./Layout";
 
 export let router = createBrowserRouter([
@@ -18,7 +18,7 @@ export let router = createBrowserRouter([
         Component: MembersView,
       },
       {
-        path: "/lockers", // ¡Tu nueva ruta declarada!
+        path: "/lockers", 
         Component: LockersView,
       },
     ],
