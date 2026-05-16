@@ -64,14 +64,14 @@ export class PrismaLockerRepository implements LockerRepository {
     );
   }
 
-  async deleteById(id: string): Promise<void> {
-    await prisma.locker.delete({
+async deleteById(id: string): Promise<void> {
+    await this.prisma.locker.delete({
       where: { id },
     });
   }
-}
+
   async update(id: string, data: Partial<Omit<Locker, 'id' | 'number'>>): Promise<Locker> {
-    const updated = await this.prisma.locker.update({
+    const updated = await prisma.locker.update({
       where: { id },
       data: {
         location: data.location,
@@ -88,3 +88,4 @@ export class PrismaLockerRepository implements LockerRepository {
       updated.member_id
     );
   }
+}
