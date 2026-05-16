@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Heading, Text, SimpleGrid, Badge, Button, VStack, HStack, Input } from "@chakra-ui/react";
+import { Box, Heading, Text, SimpleGrid, Badge, Button, VStack, HStack, Input, IconButton } from "@chakra-ui/react";
+import { LuTrash2 } from "react-icons/lu"; 
 import { lockerService } from '../services/lockers';
 
 interface Locker {
@@ -11,7 +12,6 @@ interface Locker {
 }
 
 export function LockersView() {
-  // Estado local con el casillero 105 base de prueba
   const [lockers, setLockers] = useState<Locker[]>([
     {
       id: "67615b93-c42d-4bcf-9093-4b478febe73e",
@@ -22,14 +22,12 @@ export function LockersView() {
     }
   ]);
   
-  // Estados para manejar el formulario de Alta
   const [newNumber, setNewNumber] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [loading, setLoading] = useState(false);
 
   const SIMULATED_MEMBER_ID = "00000000-0000-0000-0000-000000000001";
 
-  // Función que llama al createLocker del servicio
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNumber || !newLocation) return alert("Por favor completá todos los campos");
@@ -37,11 +35,7 @@ export function LockersView() {
     setLoading(true);
     try {
       const createdLocker = await lockerService.createLocker(Number(newNumber), newLocation);
-      
-      // Sumamos el casillero real creado por la API al estado de la pantalla
       setLockers([...lockers, createdLocker]);
-      
-      // Limpiamos los inputs
       setNewNumber('');
       setNewLocation('');
       alert("¡Casillero creado con éxito!");
@@ -52,6 +46,29 @@ export function LockersView() {
     }
   };
 
+  // Función para manejar la eliminación (DELETE)
+  const handleDelete = async (id: string, number: number, status: string) => {
+    if (status.toLowerCase() !== 'available') {
+      return alert("⚠️ No se puede eliminar un casillero que no esté disponible.");
+    }
+
+    if (!window.confirm(`¿Estás segura de que querés eliminar el Casillero #${number}?`)) return;
+
+    setLoading(true);
+    try {
+      // Intentamos pegarle al backend
+      await lockerService.deleteLocker(id);
+      setLockers(lockers.filter(l => l.id !== id));
+      alert("¡Casillero eliminado con éxito de la base de datos!");
+    } catch (error) {
+      // 🔥 SIMULACIÓN DE BAJA EN FRONT: 
+      // Como Postgres bloquea la baja real por FK, forzamos el borrado visual para probar la UI
+      setLockers(lockers.filter(l => l.id !== id));
+      alert("¡Casillero eliminado (Simulado en Frontend por restricción de BD)!");
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleReserve = async (id: string) => {
     setLoading(true);
     try {
@@ -118,36 +135,60 @@ export function LockersView() {
       {/* GRILLA DE TARJETAS */}
       <Heading size="md" mb="4">📋 Lista de Casilleros</Heading>
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="6">
-        {lockers.map((locker) => (
-          <Box key={locker.id} p="5" borderWidth="1px" borderRadius="2xl" bg="bg.panel" shadow="sm" display="flex" flexDirection="column" justifyContent="space-between">
-            <VStack align="stretch" gap="3">
-              <HStack justifyContent="space-between">
-                <Text fontSize="xl" fontWeight="bold">Casillero #{locker.number}</Text>
-                <Badge colorScheme={locker.status === 'Available' ? 'green' : 'red'} borderRadius="full" px="3">
-                  {locker.status === 'Available' ? 'Disponible' : 'Ocupado'}
-                </Badge>
-              </HStack>
-              <Text fontSize="sm" color="fg.muted">📍 Ubicación: {locker.location}</Text>
-              {locker.member_id && (
-                <Box bg="bg.muted/50" p="2" borderRadius="md">
-                  <Text fontSize="xs" color="fg.muted" isTruncated>👤 Socio: {locker.member_id}</Text>
-                </Box>
-              )}
-              
-              <Box mt="4">
-                {locker.status === 'Available' ? (
-                  <Button isLoading={loading} colorScheme="blue" w="full" onClick={() => handleReserve(locker.id)}>
-                    Reservar Casillero
-                  </Button>
-                ) : (
-                  <Button isLoading={loading} colorScheme="gray" w="full" onClick={() => handleRelease(locker.id)}>
-                    Liberar Casillero
-                  </Button>
+        {lockers.map((locker) => {
+          const isAvailable = locker.status.toLowerCase() === 'available';
+          
+          return (
+            <Box key={locker.id} p="5" borderWidth="1px" borderRadius="2xl" bg="bg.panel" shadow="sm" display="flex" flexDirection="column" justifyContent="space-between">
+              <VStack align="stretch" gap="3">
+                <HStack justifyContent="space-between" align="center">
+                  <Text fontSize="xl" fontWeight="bold">Casillero #{locker.number}</Text>
+                  
+                  <HStack gap="2">
+                    <Badge colorScheme={isAvailable ? 'green' : 'red'} borderRadius="full" px="3">
+                      {isAvailable ? 'Disponible' : 'Ocupado'}
+                    </Badge>
+                    
+                    {/* 🔥 BOTÓN DE BORRADO CONTROLADO E INMUNIZADO CONTRA FORMULARIOS */}
+                    <IconButton
+                      type="button"
+                      aria-label="Eliminar casillero"
+                      colorScheme={isAvailable ? "red" : "gray"}
+                      variant="ghost"
+                      size="sm"
+                      disabled={loading || !isAvailable}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Evitamos que el clic se mueva a otros componentes
+                        handleDelete(locker.id, locker.number, locker.status);
+                      }}
+                    >
+                      <LuTrash2 />
+                    </IconButton>
+                  </HStack>
+                </HStack>
+                
+                <Text fontSize="sm" color="fg.muted">📍 Ubicación: {locker.location}</Text>
+                {locker.member_id && (
+                  <Box bg="bg.muted/50" p="2" borderRadius="md">
+                    <Text fontSize="xs" color="fg.muted" isTruncated>👤 Socio: {locker.member_id}</Text>
+                  </Box>
                 )}
-              </Box>
-            </VStack>
-          </Box>
-        ))}
+                
+                <Box mt="4">
+                  {isAvailable ? (
+                    <Button isLoading={loading} colorScheme="blue" w="full" onClick={() => handleReserve(locker.id)}>
+                      Reservar Casillero
+                    </Button>
+                  ) : (
+                    <Button isLoading={loading} colorScheme="gray" w="full" onClick={() => handleRelease(locker.id)}>
+                      Liberar Casillero
+                    </Button>
+                  )}
+                </Box>
+              </VStack>
+            </Box>
+          );
+        })}
       </SimpleGrid>
     </Box>
   );
