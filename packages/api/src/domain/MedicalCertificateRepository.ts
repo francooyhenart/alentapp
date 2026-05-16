@@ -2,4 +2,5 @@ import { MedicalCertificateDTO, CreateMedicalCertificateRequest } from '@alentap
 
 export interface MedicalCertificateRepository {
     createAndInvalidatePrevious(data: CreateMedicalCertificateRequest): Promise<MedicalCertificateDTO>;
+    findAll(): Promise<MedicalCertificateDTO[]>;
 }

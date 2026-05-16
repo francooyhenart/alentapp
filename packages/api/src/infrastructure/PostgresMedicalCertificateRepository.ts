@@ -63,4 +63,17 @@ export class PostgresMedicalCertificateRepository implements MedicalCertificateR
             isValidated: cert.isValidated,
         };
     }
+
+    async findAll(): Promise<MedicalCertificateDTO[]> {
+        const certificates = await prisma.medicalCertificate.findMany({
+            where: {
+                deletedAt: null,
+            },
+            orderBy: {
+                issueDate: 'desc',
+            },
+        });
+
+        return certificates.map((cert) => this.mapToDTO(cert));
+    }
 }
