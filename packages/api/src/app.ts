@@ -1,15 +1,21 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { z } from 'zod';
 import { PostgresMemberRepository } from './infrastructure/PostgresMemberRepository.js';
 import { MemberValidator } from './domain/services/MemberValidator.js';
-import { LockerController } from './delivery/LockerController';
+import { LockerController } from './delivery/LockerController.js';
 import { PrismaLockerRepository } from './infrastructure/PrismaLockerRepository.js';
 import { NewLockerUseCase } from './application/NewLockerUseCase.js';
+import { DeleteLockerUseCase } from './application/DeleteLockerUseCase.js';
 import { CreateMemberUseCase } from './application/NewMemberUseCase.js';
 import { GetMembersUseCase } from './application/GetMembersUseCase.js';
 import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
+
+const DeleteLockerParamsSchema = z.object({
+  id: z.string().uuid({ message: 'El formato del ID de locker no es válido (debe ser UUID)' })
+});
 
 export function buildApp() {
     const server = Fastify({
@@ -40,6 +46,7 @@ export function buildApp() {
     const deleteMemberUseCase = new DeleteMemberUseCase(memberRepo);
     const lockerRepo = new PrismaLockerRepository();
     const newLockerUseCase = new NewLockerUseCase(lockerRepo);
+    const deleteLockerUseCase = new DeleteLockerUseCase(lockerRepo);
 
     const memberController = new MemberController(
         createMemberUseCase, 
@@ -52,14 +59,29 @@ export function buildApp() {
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
+    
     server.post('/api/v1/lockers', async (request, reply) => {
-    const body = request.body as any;
-    const result = await newLockerUseCase.execute({
-    number: Number(body.number),
-    location: body.location
-  });
-  return reply.status(201).send(result);
-});
+        const body = request.body as any;
+        const result = await newLockerUseCase.execute({
+            number: Number(body.number),
+            location: body.location
+        });
+        return reply.status(201).send(result);
+    });
+
+    server.delete('/api/v1/lockers/:id', async (request, reply) => {
+        try {
+            const result = DeleteLockerParamsSchema.safeParse(request.params);
+            if (!result.success) {
+                return reply.status(400).send({ error: result.error.errors[0].message });
+            }
+            await deleteLockerUseCase.execute(result.data.id);
+            return reply.status(204).send();
+        } catch (error: any) {
+            const statusCode = error.statusCode || 500;
+            return reply.status(statusCode).send({ error: error.message });
+        }
+    });
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })
@@ -68,7 +90,6 @@ export function buildApp() {
     return server;
 }
 
-// Solo iniciar el servidor si el script se ejecuta directamente (no cuando es importado por vitest)
 if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
     const server = buildApp();
     const port = parseInt(process.env.PORT || '3000', 10);

@@ -47,4 +47,26 @@ export class PrismaLockerRepository implements LockerRepository {
       createdLocker.member_id
     );
   }
+
+  async findById(id: string): Promise<Locker | null> {
+    const prismaLocker = await prisma.locker.findUnique({
+      where: { id },
+    });
+
+    if (!prismaLocker) return null;
+
+    return new Locker(
+      prismaLocker.id,
+      prismaLocker.number,
+      prismaLocker.location,
+      prismaLocker.status as any,
+      prismaLocker.member_id
+    );
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await prisma.locker.delete({
+      where: { id },
+    });
+  }
 }

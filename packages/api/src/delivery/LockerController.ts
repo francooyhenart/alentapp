@@ -1,39 +1,68 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { NewLockerUseCase, NewLockerInput } from '../application/NewLockerUseCase';
-import { PrismaLockerRepository } from '../infrastructure/PrismaLockerRepository';
+import { z } from 'zod';
+import { NewLockerUseCase, NewLockerInput } from '../application/NewLockerUseCase.js';
+import { DeleteLockerUseCase } from '../application/DeleteLockerUseCase.js';
+import { PrismaLockerRepository } from '../infrastructure/PrismaLockerRepository.js';
+
+// Definimos el esquema de Zod para validar que el id de los parámetros sea un UUID válido
+const DeleteLockerParamsSchema = z.object({
+  id: z.string().uuid({ message: 'El formato del ID de locker no es válido (debe ser UUID)' })
+});
 
 export async function LockerController(fastify: FastifyInstance) {
   
-  // Instanciamos el repositorio real de Prisma
   const lockerRepository = new PrismaLockerRepository();
-  // Se lo inyectamos al caso de uso de aplicación
   const newLockerUseCase = new NewLockerUseCase(lockerRepository);
+  const deleteLockerUseCase = new DeleteLockerUseCase(lockerRepository);
 
-  // Definimos el endpoint POST para crear el locker
+  // 1. Endpoint POST para crear el locker
   fastify.post('/lockers', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as NewLockerInput;
 
-      // Validamos rápidamente que nos manden los datos obligatorios
       if (!body.number || !body.location) {
         return reply.status(400).send({ 
           error: 'Faltan datos obligatorios: "number" y "location" son requeridos.' 
         });
       }
 
-      // Ejecutamos la lógica de negocio
       const createdLocker = await newLockerUseCase.execute({
         number: Number(body.number),
         location: body.location
       });
 
-      // Si todo sale bien, devolvemos un 211 (Created) con el locker nuevo
       return reply.status(201).send(createdLocker);
 
     } catch (error: any) {
-      // Si salta el error de número duplicado que programamos en el Caso de Uso, lo atrapamos acá
       return reply.status(400).send({ error: error.message });
     }
   });
-}
 
+  // 2. Endpoint DELETE para dar de baja un locker (Cumpliendo el Flujo TDD con Zod)
+  fastify.delete('/lockers/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Validamos los parámetros de la request usando el esquema de Zod
+      const result = DeleteLockerParamsSchema.safeParse(request.params);
+
+      // Si Zod detecta que no es un UUID válido, frena el flujo y devuelve 400
+      if (!result.success) {
+        const firstError = result.error.errors[0].message;
+        return reply.status(400).send({ error: firstError });
+      }
+
+      // Si pasó la validación, extraemos el id seguro
+      const { id } = result.data;
+
+      // Ejecutamos el caso de uso
+      await deleteLockerUseCase.execute(id);
+
+      // Si todo sale bien, respondemos con 204 No Content
+      return reply.status(204).send();
+
+    } catch (error: any) {
+      // Atrapamos los códigos de error del caso de uso (404 o 409)
+      const statusCode = error.statusCode || 500;
+      return reply.status(statusCode).send({ error: error.message });
+    }
+  });
+}
