@@ -23,6 +23,7 @@ import { DeleteMedicalCertificateUseCase } from './application/DeleteMedicalCert
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { PrismaSportRepository } from './infrastructure/PrismaSportRepository.js';
 import { CreateSportUseCase } from './application/CreateSportUseCase.js';
+import { GetAllSportsUseCase } from './application/GetAllSportsUseCase.js';
 import { SportController } from './delivery/SportController.js';
 
 // NUEVOS IMPORTS PARA ESTE TDD
@@ -118,7 +119,8 @@ export function buildApp() {
 
     const sportRepo = new PrismaSportRepository();
     const createSportUseCase = new CreateSportUseCase(sportRepo);
-    const sportController = new SportController(createSportUseCase);
+    const getAllSportsUseCase = new GetAllSportsUseCase(sportRepo);
+    const sportController = new SportController(createSportUseCase, getAllSportsUseCase);
 
     // RUTAS SOCIOS
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -207,6 +209,7 @@ export function buildApp() {
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
     server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
 
+    server.get('/api/v1/sports', sportController.getAll.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
 
     server.get('/', async (req, rep) => {
