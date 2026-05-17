@@ -12,8 +12,6 @@ import { GetMembersUseCase } from './application/GetMembersUseCase.js';
 import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
-
-feature/update-equipment-loan
 import { equipmentLoanRoutes } from './delivery/routes/equipmentLoanRoutes.js';
 import { DependencyContainer } from './infrastructure/di/container.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
@@ -23,6 +21,9 @@ import { GetMedicalCertificatesUseCase } from './application/GetMedicalCertifica
 import { UpdateMedicalCertificateUseCase } from './application/UpdateMedicalCertificateUseCase.js';
 import { DeleteMedicalCertificateUseCase } from './application/DeleteMedicalCertificateUseCase.js';
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
+import { PrismaSportRepository } from './infrastructure/PrismaSportRepository.js';
+import { CreateSportUseCase } from './application/CreateSportUseCase.js';
+import { SportController } from './delivery/SportController.js';
 
 // NUEVOS IMPORTS PARA ESTE TDD
 import { ReserveLockerUseCase } from './application/ReserveLockerUseCase.js';
@@ -39,11 +40,10 @@ const ReserveLockerBodySchema = z.object({
 });
 
 const UpdateLockerStatusBodySchema = z.object({
-  status: z.enum(['Available', 'Maintenance'], { 
-    errorMap: () => ({ message: 'El estado debe ser estrictamente Available o Maintenance' }) 
+  status: z.enum(['Available', 'Maintenance'], {
+    message: 'El estado debe ser estrictamente Available o Maintenance'
   })
 });
-main
 
 export function buildApp() {
     const server = Fastify({
@@ -90,7 +90,6 @@ export function buildApp() {
         deleteMemberUseCase
     );
 
-feature/update-equipment-loan
     const container = DependencyContainer.getInstance();
     const equipmentLoanController = container.getEquipmentLoanController();
 
@@ -117,10 +116,11 @@ feature/update-equipment-loan
         deleteMedicalCertificateUseCase,
     );
 
+    const sportRepo = new PrismaSportRepository();
+    const createSportUseCase = new CreateSportUseCase(sportRepo);
+    const sportController = new SportController(createSportUseCase);
 
     // RUTAS SOCIOS
-
-main
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
@@ -140,7 +140,7 @@ main
         try {
             const result = IdParamSchema.safeParse(request.params);
             if (!result.success) {
-                return reply.status(400).send({ error: result.error.errors[0].message });
+                return reply.status(400).send({ error: result.error.issues[0].message });
             }
             await deleteLockerUseCase.execute(result.data.id);
             return reply.status(204).send();
@@ -173,7 +173,7 @@ main
     server.patch('/api/v1/lockers/:id/release', async (request, reply) => {
         try {
             const paramResult = IdParamSchema.safeParse(request.params);
-            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.errors[0].message });
+            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.issues[0].message });
 
             // Simulación de extracción del member_id de la sesión mediante JWT Mock en req.body para el testeo básico
             const sessionMemberId = (request.body as any)?.session_member_id || (request.headers as any)['x-user-id'];
@@ -192,8 +192,8 @@ main
             const paramResult = IdParamSchema.safeParse(request.params);
             const bodyResult = UpdateLockerStatusBodySchema.safeParse(request.body);
             
-            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.errors[0].message });
-            if (!bodyResult.success) return reply.status(400).send({ error: bodyResult.error.errors[0].message });
+            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.issues[0].message });
+            if (!bodyResult.success) return reply.status(400).send({ error: bodyResult.error.issues[0].message });
 
             const result = await updateLockerStatusUseCase.execute(paramResult.data.id, bodyResult.data.status);
             return reply.status(200).send(result);
@@ -206,6 +206,8 @@ main
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
     server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
+
+    server.post('/api/v1/sports', sportController.create.bind(sportController));
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })
