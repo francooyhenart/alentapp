@@ -4,7 +4,7 @@
 |---|---|
 | Estado | Propuesto |
 | Autor | Brenda Belen Conti |
-| Fecha | 2026-05-07|
+| Fecha | 2026-05-13|
 
 ## 1. Contexto de Negocio
 
@@ -84,39 +84,23 @@ export interface LockerRepository {
 
 ### 3.2. Lógica del Caso de Uso
 
-#### CU-01: Baja de Locker
+**Caso de Uso:** `Baja de Casillero` (DeleteLocker)
 
-**Descripción:** Permite a un administrador eliminar un casillero del sistema, generalmente porque la unidad física fue retirada del club, vendida o destruida y no volverá a utilizarse.
+**Flujo paso a paso:**
 
-**Actor Principal:** Administrador
+1. 
+  - validar la existencia del casillero a eliminar
+  - validar que el estado actual del casillero no sea `Occupied` para prevenir la eliminación de un casillero en uso por un socio
 
-**Precondiciones:**
-1. El administrador debe estar autenticado con los permisos necesarios para modificar la infraestructura del club.
-2. El casillero a eliminar debe existir en la base de datos.
-3. El casillero no debe estar ocupado por ningún socio (`status` distinto de `Occupied` y `member_id` en `null`).
+2. 
+  - (no requiere mapeo de datos, la acción se ejecuta directamente mediante el identificador provisto)
 
-**Flujo Principal (Escenario de Éxito):**
-1. El administrador ingresa al módulo de "Gestión de Lockers".
-2. El sistema despliega el listado completo de casilleros.
-3. El administrador selecciona el casillero a dar de baja y hace clic en "Eliminar".
-4. El sistema muestra un modal de confirmación advirtiendo que la acción es irreversible.
-5. El administrador confirma la eliminación.
-6. El sistema envía una petición `DELETE /api/v1/lockers/{id}`.
-7. El sistema verifica que el casillero no tenga el estado `Occupied`.
-8. El sistema ejecuta el borrado del registro en la base de datos.
-9. El sistema muestra un mensaje de éxito ("Casillero eliminado correctamente") y lo remueve del listado en pantalla.
+3. 
+  - persistir la eliminación física de los datos asociados al casillero en la base de datos, a través de `LockerRepository.deleteById()`
 
-**Flujos Alternativos (Escenarios de Fallo):**
-
-- **A1. Casillero Ocupado:** En el paso 7, el sistema detecta que el casillero tiene un socio asignado. Aborta la eliminación y muestra: *"Operación denegada. No se puede eliminar un casillero que se encuentra actualmente en uso. Solicite su liberación primero."*
-- **A2. Casillero Inexistente:** En el paso 6, el sistema no encuentra el ID enviado. Frena la acción y recarga la lista de casilleros con la información actualizada.
-- **A3. Error de Permisos:** En el paso 6, se valida que el usuario no tiene el rol correspondiente. El sistema bloquea el request y notifica: *"Acceso denegado: no cuenta con los permisos para eliminar registros."*
-- **A4. Falla de Infraestructura:** En el paso 8, falla la ejecución de la consulta SQL. El sistema aborta la transacción y notifica un error interno del servidor.
-
-**Postcondiciones:**
-- El registro del casillero desaparece permanentemente del modelo relacional.
-- El `number` de ese casillero queda libre y puede ser reutilizado en el futuro sin conflicto de unicidad.
-
+4. 
+  - retornar la confirmación de la operación exitosa (sin contenido / void)
+ 
 ## 4. Casos de Borde y Manejo de Errores
 
 | Escenario de Error | Validación / Regla de Negocio | Código HTTP |

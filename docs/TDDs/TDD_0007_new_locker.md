@@ -4,7 +4,7 @@
 |---|---|
 | Estado | Propuesto |
 | Autor | Brenda Belen Conti |
-| Fecha | 2026-05-07 |
+| Fecha | 2026-05-13 |
 
 ## 1. Contexto de Negocio
 
@@ -96,35 +96,24 @@ export interface LockerRepository {
 
 ### 3.2. Lógica del Caso de Uso
 
-#### CU-01: Alta de Casillero
+**Caso de Uso:** `Alta de Casillero` (CreateLocker)
 
-**Descripción:** Permite a un administrador registrar un nuevo casillero físico en el sistema, definiendo su número de identificación y ubicación.
+**Flujo paso a paso:**
 
-**Actor Principal:** Administrador
+1. 
+  - validar que solo se reciban los datos `number` y `location` o ignorar el resto de datos
+  - validar que el número de casillero (`number`) no exista previamente en el sistema para evitar duplicados
 
-**Precondiciones:**
-1. El administrador debe estar autenticado en el sistema con permisos o rol de gestión de inventario.
-2. El número de casillero a registrar no debe existir previamente en el sistema.
+2. 
+  - mapear los datos del DTO recibido en una nueva entidad asociada al casillero
+  - mapear la asignación de valores por defecto: generar `id` (UUID), establecer `status` inicial en `Available` y `member_id` en `null`
 
-**Flujo Principal (Escenario de Éxito):**
-1. El administrador ingresa al módulo de "Gestión de Lockers".
-2. Selecciona la opción "Nuevo Casillero" (o "Agregar").
-3. El sistema muestra un formulario solicitando el Número (`number`) y la Ubicación (`location`).
-4. El administrador completa los datos requeridos y envía el formulario.
-5. El sistema envía una petición `POST /api/v1/lockers` con los datos en el body.
-6. El sistema valida los datos de entrada y verifica en la base de datos que el `number` no esté registrado.
-7. El sistema crea el registro en la base de datos, generando un nuevo `id` (UUID) y asignando automáticamente el `status` inicial como `"Available"` y el `member_id` en `null`.
-8. El sistema muestra un mensaje de éxito ("Casillero registrado correctamente") y actualiza el listado en pantalla.
+3. 
+  - persistir el mapeo de dichos datos, a través de `LockerRepository.create()`
 
-**Flujos Alternativos (Escenarios de Fallo):**
+4. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida creada
 
-- **A1. Número de Casillero Duplicado:** En el paso 6, el sistema detecta que el `number` ingresado ya pertenece a otro casillero existente. El sistema rechaza la creación, no guarda nada en la base de datos y muestra: *"Error: El número de casillero ingresado ya existe. Por favor, asigne un identificador único."*
-- **A2. Error de Permisos:** En el paso 5, el sistema verifica que el usuario autenticado no tiene rol de administrador. El sistema deniega la solicitud y muestra: *"Acceso denegado: no cuenta con los permisos necesarios para registrar nuevos casilleros."*
-- **A3. Falla de Conexión / Infraestructura:** En el paso 7, ocurre un problema al intentar insertar el registro en la base de datos. El sistema aborta la operación y muestra un mensaje indicando que ocurrió un error interno en el servidor.
-
-**Postcondiciones:**
-- El nuevo casillero se incorpora a la base de datos y al listado general.
-- El casillero queda inmediatamente disponible (`"Available"`) para que cualquier socio lo pueda reservar.
 
 ## 4. Casos de Borde y Manejo de Errores
 

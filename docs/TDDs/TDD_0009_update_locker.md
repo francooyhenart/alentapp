@@ -4,7 +4,7 @@
 |---|---|
 | Estado | Propuesto |
 | Autor | Brenda Belen Conti |
-| Fecha | 2026-05-07|
+| Fecha | 2026-05-13|
 
 
 ## 1. Contexto de Negocio
@@ -169,84 +169,63 @@ export interface LockerRepository {
 ```
 ### 3.2. Lógica del Caso de Uso
 
-#### CU-01: Alta de Reserva de Casillero
+**Caso de Uso:** `Alta de Reserva` (ReserveLocker)
 
-**Descripción:** Permite a un socio registrado reservar un casillero disponible en el club.  
-**Actor Principal:** Socio
+**Flujo paso a paso:**
 
-**Precondiciones:**
-1. El socio debe estar autenticado en el sistema (sesión activa).
-2. El casillero debe existir y su `status` debe ser estrictamente `Available`.
+1. 
+  - validar la existencia del casillero a reservar
+  - validar que el estado del casillero sea estrictamente `Available`
 
-**Flujo Principal (Escenario de Éxito):**
-1. El socio ingresa a la sección de "Lockers" en la aplicación.
-2. El sistema muestra los casilleros disponibles.
-3. El socio selecciona un casillero y presiona "Reservar".
-4. El sistema envía `PATCH /api/v1/lockers/{id}/reserve` con el `member_id` en el body.
-5. El sistema valida que el casillero siga en estado `Available`.
-6. El sistema actualiza el registro: cambia `status` a `Occupied` y guarda el UUID del socio en `member_id`.
-7. El sistema confirma la reserva y le indica al socio el `number` y `location` del casillero.
+2. 
+  - mapear el `member_id` recibido en el DTO en la entidad asociada al casillero
+  - mapear el cambio de estado a `Occupied`
 
-**Flujos Alternativos (Escenarios de Fallo):**
-- **A1. Casillero No Disponible:** En el paso 5, el casillero fue tomado por otro socio o pasado a `Maintenance`. El sistema rechaza la petición y muestra: *"Este casillero ya no se encuentra disponible. Por favor, seleccione otro."*
-- **A2. Falla de Infraestructura:** En el paso 6, ocurre un error de base de datos. El sistema aborta la transacción y muestra un mensaje de error genérico invitando a reintentar.
+3. 
+  - persistir el mapeo de dichos datos, a través de `LockerRepository.update()`
 
-**Postcondiciones:**
-- El casillero queda inaccesible para otros socios.
-- El socio queda vinculado al casillero hasta que ejecute la acción de liberación.
+4. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
 
-#### CU-02: Baja de Reserva (Liberación de Casillero)
 
-**Descripción:** Permite a un socio liberar el casillero que tiene asignado, dejándolo disponible para otros miembros.  
-**Actor Principal:** Socio
+**Caso de Uso:** `Baja de Reserva` (ReleaseLocker)
 
-**Precondiciones:**
-1. El socio debe estar autenticado en el sistema (sesión activa).
-2. El casillero debe tener `status: Occupied` y el `member_id` debe coincidir con el UUID del socio en sesión.
+**Flujo paso a paso:**
 
-**Flujo Principal (Escenario de Éxito):**
-1. El socio ingresa a "Mi Casillero" y visualiza su casillero asignado.
-2. El socio presiona "Liberar Casillero" y confirma la acción.
-3. El sistema envía `PATCH /api/v1/lockers/{id}/release`.
-4. El sistema valida que el `member_id` del casillero coincida con el token de sesión.
-5. El sistema actualiza el registro: cambia `status` a `Available` y setea `member_id` a `null`.
-6. El sistema confirma la liberación y redirige al socio a la pantalla principal.
+1. 
+  - validar la existencia del casillero a liberar
+  - validar que el estado del casillero sea `Occupied`
+  - validar que el `member_id` del casillero coincida con el id del socio en sesión para autorizar la acción
 
-**Flujos Alternativos (Escenarios de Fallo):**
-- **A1. Error de Autorización:** En el paso 4, el `member_id` no coincide con el token de sesión. El sistema bloquea el request con `403 Forbidden` y muestra: *"Acceso denegado: no puedes liberar un casillero que no tienes asignado."*
-- **A2. Falla de Infraestructura:** En el paso 5, ocurre un error de base de datos. El sistema aplica un `rollback`, mantiene el casillero en `Occupied` y muestra: *"Ocurrió un error al intentar liberar el casillero. Por favor, intenta nuevamente."*
+2. 
+  - mapear la limpieza de datos en la entidad asociada (cambiar estado a `Available` y `member_id` a `null`)
 
-**Postcondiciones:**
-- El casillero vuelve a `Available` y `member_id` queda en `null`.
-- El casillero vuelve a ser visible para todos los socios.
+3. 
+  - persistir el mapeo de dichos datos de forma atómica, a través de `LockerRepository.update()`
 
-#### CU-03: Actualización de Estado (Gestión de Mantenimiento)
+4. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
 
-**Descripción:** Permite a un administrador modificar el estado operativo de un casillero entre `Available` y `Maintenance`.  
-**Actor Principal:** Administrador
 
-**Precondiciones:**
-1. El administrador debe estar autenticado con rol de gestión de infraestructura.
-2. El casillero debe existir en la base de datos.
+**Caso de Uso:** `Actualización de Estado` (UpdateLockerStatus)
 
-**Flujo Principal (Escenario de Éxito):**
-1. El administrador ingresa al panel de "Gestión de Lockers".
-2. El sistema muestra el inventario completo con los estados actuales.
-3. El administrador selecciona un casillero y elige "Cambiar Estado".
-4. El administrador selecciona el nuevo estado (`Maintenance` o `Available`) y confirma.
-5. El sistema envía `PATCH /api/v1/lockers/{id}/status` con el nuevo estado en el body.
-6. El sistema valida permisos y verifica que el casillero no esté en `Occupied`.
-7. El sistema actualiza el `status` en la base de datos.
-8. El sistema confirma la operación y refresca la lista de casilleros.
+**Flujo paso a paso:**
 
-**Flujos Alternativos (Escenarios de Fallo):**
-- **A1. Casillero Ocupado:** En el paso 6, el casillero tiene estado `Occupied`. El sistema bloquea la actualización y muestra: *"No se puede pasar a mantenimiento un casillero que actualmente está siendo utilizado por un socio. Solicite su liberación primero."*
-- **A2. Error de Permisos:** En el paso 6, el usuario no tiene rol de administrador. El sistema rechaza la solicitud y muestra: *"Acceso denegado: no cuenta con los permisos necesarios para realizar esta acción."*
-- **A3. Falla de Infraestructura:** En el paso 7, falla la conexión con la base de datos. El sistema aplica un `rollback` y mantiene el estado original del casillero.
+1. 
+  - validar la existencia del casillero a modificar
+  - validar que solo se reciba el dato `status` (`Available` o `Maintenance`) o ignorar el resto de datos
 
-**Postcondiciones:**
-- Si el casillero pasó a `Maintenance`, se oculta de la vista de reservas de los socios.
-- Si el casillero volvió a `Available`, queda inmediatamente habilitado para nuevas reservas.
+2. 
+  - validar que el estado actual del casillero no sea `Occupied` para prevenir bloqueos de casilleros en uso
+
+3. 
+  - mapear los datos del DTO recibido en la entidad asociada al casillero que se espera modificar
+
+4. 
+  - persistir el mapeo de dichos datos, a través de `LockerRepository.update()`
+
+5. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
 
 ## 4. Casos de Borde y Manejo de Errores
 
