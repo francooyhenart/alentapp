@@ -12,8 +12,10 @@ import { GetMembersUseCase } from './application/GetMembersUseCase.js';
 import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
+
 import { equipmentLoanRoutes } from './delivery/routes/equipmentLoanRoutes.js';
 import { DependencyContainer } from './infrastructure/di/container.js';
+
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 import { CreateMedicalCertificateUseCase } from './application/NewMedicalCertificateUseCase.js';
@@ -90,6 +92,7 @@ export function buildApp() {
         deleteMemberUseCase
     );
 
+    // INSTANCIACIÓN DE EQUIPMENT LOAN
     const container = DependencyContainer.getInstance();
     const equipmentLoanController = container.getEquipmentLoanController();
 
@@ -99,7 +102,7 @@ export function buildApp() {
         },
         { prefix: '/api/v1' }
     );
-  
+
     // INSTANCIACIÓN DE MEDICAL CERTIFICATE
     const medicalCertificateRepo = new PostgresMedicalCertificateRepository();
     const medicalCertificateValidator = new MedicalCertificateValidator(memberRepo);
@@ -202,6 +205,7 @@ export function buildApp() {
         }
     });
 
+    // RUTAS MEDICAL CERTIFICATES
     server.get('/api/v1/medical-certificates', medicalCertificateController.getAll.bind(medicalCertificateController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
