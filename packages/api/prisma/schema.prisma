@@ -35,9 +35,34 @@ model Member {
     created_at DateTime       @default(now())
     medicalCertificates MedicalCertificate[]
 
+    equipmentLoans EquipmentLoan[]
+
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
 
+feature/update-equipment-loan
+model EquipmentLoan {
+  id            String    @id @default(uuid())
+  itemName      String    @map("item_name")
+  status        String    // "Loaned", "Returned", "Damaged", "Canceled"
+  isActive      Boolean   @default(true) @map("is_active")
+  loanDate      DateTime  @default(now()) @map("loan_date")
+  returnDate    DateTime? @map("return_date")
+  canceledDate  DateTime? @map("canceled_date")
+  notes         String?
+  
+  member        Member    @relation(fields: [memberId], references: [id])
+  memberId      String    @map("member_id")
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  @@index([memberId])
+  @@index([status])
+  @@index([isActive])
+  @@map("equipment_loans")
+}
+=======
 
 model MedicalCertificate {
   id            String    @id @default(uuid())
@@ -69,3 +94,4 @@ model Locker {
 
   @@map("lockers")
 }
+main

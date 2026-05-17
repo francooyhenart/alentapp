@@ -12,6 +12,10 @@ import { GetMembersUseCase } from './application/GetMembersUseCase.js';
 import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
+
+feature/update-equipment-loan
+import { equipmentLoanRoutes } from './delivery/routes/equipmentLoanRoutes.js';
+import { DependencyContainer } from './infrastructure/di/container.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 import { CreateMedicalCertificateUseCase } from './application/NewMedicalCertificateUseCase.js';
@@ -39,6 +43,7 @@ const UpdateLockerStatusBodySchema = z.object({
     errorMap: () => ({ message: 'El estado debe ser estrictamente Available o Maintenance' }) 
   })
 });
+main
 
 export function buildApp() {
     const server = Fastify({
@@ -85,6 +90,17 @@ export function buildApp() {
         deleteMemberUseCase
     );
 
+feature/update-equipment-loan
+    const container = DependencyContainer.getInstance();
+    const equipmentLoanController = container.getEquipmentLoanController();
+
+    server.register(
+        async (instance) => {
+            await equipmentLoanRoutes(instance, equipmentLoanController);
+        },
+        { prefix: '/api/v1' }
+    );
+  
     // INSTANCIACIÓN DE MEDICAL CERTIFICATE
     const medicalCertificateRepo = new PostgresMedicalCertificateRepository();
     const medicalCertificateValidator = new MedicalCertificateValidator(memberRepo);
@@ -104,6 +120,7 @@ export function buildApp() {
 
     // RUTAS SOCIOS
 
+main
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
