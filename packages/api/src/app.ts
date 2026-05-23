@@ -13,6 +13,23 @@ import { UpdateMemberUseCase } from './application/UpdateMemberUseCase.js';
 import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
 
+import { equipmentLoanRoutes } from './delivery/routes/equipmentLoanRoutes.js';
+import { DependencyContainer } from './infrastructure/di/container.js';
+
+import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
+import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
+import { CreateMedicalCertificateUseCase } from './application/NewMedicalCertificateUseCase.js';
+import { GetMedicalCertificatesUseCase } from './application/GetMedicalCertificatesUseCase.js';
+import { UpdateMedicalCertificateUseCase } from './application/UpdateMedicalCertificateUseCase.js';
+import { DeleteMedicalCertificateUseCase } from './application/DeleteMedicalCertificateUseCase.js';
+import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
+import { PrismaSportRepository } from './infrastructure/PrismaSportRepository.js';
+import { CreateSportUseCase } from './application/CreateSportUseCase.js';
+import { GetAllSportsUseCase } from './application/GetAllSportsUseCase.js';
+import { UpdateSportUseCase } from './application/UpdateSportUseCase.js';
+import { DeleteSportUseCase } from './application/DeleteSportUseCase.js';
+import { SportController } from './delivery/SportController.js';
+
 // NUEVOS IMPORTS PARA ESTE TDD
 import { ReserveLockerUseCase } from './application/ReserveLockerUseCase.js';
 import { ReleaseLockerUseCase } from './application/ReleaseLockerUseCase.js';
@@ -28,8 +45,8 @@ const ReserveLockerBodySchema = z.object({
 });
 
 const UpdateLockerStatusBodySchema = z.object({
-  status: z.enum(['Available', 'Maintenance'], { 
-    errorMap: () => ({ message: 'El estado debe ser estrictamente Available o Maintenance' }) 
+  status: z.enum(['Available', 'Maintenance'], {
+    message: 'El estado debe ser estrictamente Available o Maintenance'
   })
 });
 
@@ -78,6 +95,45 @@ export function buildApp() {
         deleteMemberUseCase
     );
 
+    // INSTANCIACIÓN DE EQUIPMENT LOAN
+    const container = DependencyContainer.getInstance();
+    const equipmentLoanController = container.getEquipmentLoanController();
+
+    server.register(
+        async (instance) => {
+            await equipmentLoanRoutes(instance, equipmentLoanController);
+        },
+        { prefix: '/api/v1' }
+    );
+
+    // INSTANCIACIÓN DE MEDICAL CERTIFICATE
+    const medicalCertificateRepo = new PostgresMedicalCertificateRepository();
+    const medicalCertificateValidator = new MedicalCertificateValidator(memberRepo);
+
+    const createMedicalCertificateUseCase = new CreateMedicalCertificateUseCase(medicalCertificateRepo, medicalCertificateValidator);
+    const getMedicalCertificatesUseCase = new GetMedicalCertificatesUseCase(medicalCertificateRepo);
+    const updateMedicalCertificateUseCase = new UpdateMedicalCertificateUseCase(medicalCertificateRepo);
+    const deleteMedicalCertificateUseCase = new DeleteMedicalCertificateUseCase(medicalCertificateRepo);
+
+    const medicalCertificateController = new MedicalCertificateController(
+        createMedicalCertificateUseCase,
+        getMedicalCertificatesUseCase,
+        updateMedicalCertificateUseCase,
+        deleteMedicalCertificateUseCase,
+    );
+
+    const sportRepo = new PrismaSportRepository();
+    const createSportUseCase = new CreateSportUseCase(sportRepo);
+    const getAllSportsUseCase = new GetAllSportsUseCase(sportRepo);
+    const updateSportUseCase = new UpdateSportUseCase(sportRepo);
+    const deleteSportUseCase = new DeleteSportUseCase(sportRepo);
+    const sportController = new SportController(
+        createSportUseCase,
+        getAllSportsUseCase,
+        updateSportUseCase,
+        deleteSportUseCase,
+    );
+
     // RUTAS SOCIOS
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
@@ -85,20 +141,33 @@ export function buildApp() {
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     
     // RUTAS LOCKERS (EXISTENTES)
+    server.get('/api/v1/lockers', async (_request, reply) => {
+        try {
+            const lockers = await lockerRepo.findAll();
+            return reply.status(200).send(lockers);
+        } catch (error: any) {
+            return reply.status(500).send({ error: error.message });
+        }
+    });
+
     server.post('/api/v1/lockers', async (request, reply) => {
-        const body = request.body as any;
-        const result = await newLockerUseCase.execute({
-            number: Number(body.number),
-            location: body.location
-        });
-        return reply.status(201).send(result);
+        try {
+            const body = request.body as any;
+            const result = await newLockerUseCase.execute({
+                number: Number(body.number),
+                location: body.location
+            });
+            return reply.status(201).send(result);
+        } catch (error: any) {
+            return reply.status(400).send({ error: error.message });
+        }
     });
 
     server.delete('/api/v1/lockers/:id', async (request, reply) => {
         try {
             const result = IdParamSchema.safeParse(request.params);
             if (!result.success) {
-                return reply.status(400).send({ error: result.error.errors[0].message });
+                return reply.status(400).send({ error: result.error.issues[0].message });
             }
             await deleteLockerUseCase.execute(result.data.id);
             return reply.status(204).send();
@@ -126,12 +195,12 @@ export function buildApp() {
             return reply.status(error.statusCode || 500).send({ error: error.message });
         }
     });
-   
+
  // 2. Liberar Casillero
     server.patch('/api/v1/lockers/:id/release', async (request, reply) => {
         try {
             const paramResult = IdParamSchema.safeParse(request.params);
-            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.errors[0].message });
+            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.issues[0].message });
 
             // Simulación de extracción del member_id de la sesión mediante JWT Mock en req.body para el testeo básico
             const sessionMemberId = (request.body as any)?.session_member_id || (request.headers as any)['x-user-id'];
@@ -150,8 +219,8 @@ export function buildApp() {
             const paramResult = IdParamSchema.safeParse(request.params);
             const bodyResult = UpdateLockerStatusBodySchema.safeParse(request.body);
             
-            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.errors[0].message });
-            if (!bodyResult.success) return reply.status(400).send({ error: bodyResult.error.errors[0].message });
+            if (!paramResult.success) return reply.status(400).send({ error: paramResult.error.issues[0].message });
+            if (!bodyResult.success) return reply.status(400).send({ error: bodyResult.error.issues[0].message });
 
             const result = await updateLockerStatusUseCase.execute(paramResult.data.id, bodyResult.data.status);
             return reply.status(200).send(result);
@@ -159,6 +228,17 @@ export function buildApp() {
             return reply.status(error.statusCode || 500).send({ error: error.message });
         }
     });
+
+    // RUTAS MEDICAL CERTIFICATES
+    server.get('/api/v1/medical-certificates', medicalCertificateController.getAll.bind(medicalCertificateController));
+    server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
+    server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
+    server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
+
+    server.get('/api/v1/sports', sportController.getAll.bind(sportController));
+    server.post('/api/v1/sports', sportController.create.bind(sportController));
+    server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
+    server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
 
     server.get('/', async (req, rep) => {
         rep.status(200).send({ msg: 'asd' })

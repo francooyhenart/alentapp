@@ -1,4 +1,13 @@
-const API_URL = 'http://192.168.0.71:3000/api/v1/lockers';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1/lockers';
+
+async function parseError(response: Response, fallback: string) {
+  try {
+    const errorData = await response.json();
+    return errorData.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // Función auxiliar para parsear errores del backend (si ya la tenés importada, podés borrar esta)
 const parseError = async (response: Response, defaultMessage: string): Promise<string> => {
@@ -19,6 +28,7 @@ export const lockerService = {
   },
 
   // Crear un nuevo casillero
+  // Método para crear (POST)
   createLocker: async (number: number, location: string) => {
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -30,37 +40,30 @@ export const lockerService = {
   },
 
   // Reservar un casillero (PATCH)
+  // Para reservar (PATCH)
   reserveLocker: async (id: string, memberId: string) => {
     const response = await fetch(`${API_URL}/${id}/reserve`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ member_id: memberId }),
     });
-
-    if (!response.ok) {
-      throw new Error('Error al reservar el casillero');
-    }
+    if (!response.ok) throw new Error(await parseError(response, 'Error al reservar el casillero'));
     return response.json();
   },
 
   // Liberar un casillero (PATCH con cabecera)
+  // Para liberar (PATCH)
   releaseLocker: async (id: string, memberId: string) => {
     const response = await fetch(`${API_URL}/${id}/release`, {
       method: 'PATCH',
-      headers: {
-        'x-user-id': memberId,
-      },
+      headers: { 'x-user-id': memberId },
     });
-
-    if (!response.ok) {
-      throw new Error('Error al liberar el casillero');
-    }
+    if (!response.ok) throw new Error(await parseError(response, 'Error al liberar el casillero'));
     return response.json();
   },
 
   // Eliminar un casillero
+  // NUEVO: Método para eliminar un casillero (DELETE)
   deleteLocker: async (id: string) => {
     const response = await fetch(`${API_URL}/${id}`, {
       method: 'DELETE',

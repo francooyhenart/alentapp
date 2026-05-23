@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuUsers, LuLayers } from "react-icons/lu";
+import { LuUsers, LuLayers, LuFileText, LuTrophy } from "react-icons/lu";
 import { SectionCard } from "../components/SectionCard";
 
 export function HomeView() {
@@ -24,6 +24,7 @@ export function HomeView() {
       </VStack>
 
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="8">
+        {/* Tarjeta oficial de Miembros de tus amigos */}
         <SectionCard 
           title="Miembros"
           description="Administra el padrón de socios, sus categorías, estados de cuenta y datos personales."
@@ -31,12 +32,34 @@ export function HomeView() {
           icon={LuUsers}
         />
 
-        {/* ¡Tu nueva sección integrada impecable! */}
+        <SectionCard 
+          title="Préstamos"
+          description="Controlá el préstamo de material deportivo, devoluciones en buen estado, roturas y cancelaciones."
+          to="/equipment-loans"
+          icon={LuUsers}/* no tengo icono todavia, de dejo el de miembros por defecto*/
+        />
+
+        {/* Future sections can be added here following the same pattern */}
+        {/* Tu nueva sección integrada impecable */}
         <SectionCard 
           title="Casilleros"
           description="Gestioná la asignación, reserva, mantenimiento y liberación de casilleros en las sedes."
           to="/lockers"
           icon={LuLayers}
+        />
+
+        <SectionCard 
+          title="Certificados Médicos"
+          description="Administra los certificados médicos de los socios, su estado de validación y vigencia."
+          to="/medical-certificates"
+          icon={LuFileText}
+        />
+
+        <SectionCard
+          title="Deportes"
+          description="Gestiona las disciplinas del club, sus cupos, precios adicionales y requisitos de certificado medico."
+          to="/sports"
+          icon={LuTrophy}
         />
 
         {/* Secciones futuras en estado dashed */}

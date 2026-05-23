@@ -47,6 +47,45 @@ function Layout() {
                                 Casilleros
                             </Text>
                         </RouterLink>
+
+                        <RouterLink to="/medical-certificates">
+                            <Text 
+                                fontWeight="semibold" 
+                                fontSize="sm" 
+                                textTransform="uppercase" 
+                                letterSpacing="wider"
+                                color="fg.muted"
+                                _hover={{ color: "blue.500", textDecoration: "none" }}
+                            >
+                                Certificados Médicos
+                            </Text>
+                        </RouterLink>
+
+                        <RouterLink to="/sports">
+                            <Text 
+                                fontWeight="semibold" 
+                                fontSize="sm" 
+                                textTransform="uppercase" 
+                                letterSpacing="wider"
+                                color="fg.muted"
+                                _hover={{ color: "blue.500", textDecoration: "none" }}
+                            >
+                                Deportes
+                            </Text>
+                        </RouterLink>
+
+                        <RouterLink to="/equipment-loans">
+                            <Text 
+                                fontWeight="semibold" 
+                                fontSize="sm" 
+                                textTransform="uppercase" 
+                                letterSpacing="wider"
+                                color="fg.muted"
+                                _hover={{ color: "blue.500", textDecoration: "none" }}
+                            >
+                                Prestamos
+                            </Text>
+                        </RouterLink>
                     </HStack>
                 </Flex>
             </Box>

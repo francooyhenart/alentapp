@@ -4,7 +4,7 @@
 |---|---|
 | Estado | Propuesto |
 | Autor | Brenda Belen Conti |
-| Fecha | 2026-05-07|
+| Fecha | 2026-05-13|
 
 
 ## 1. Contexto de Negocio
@@ -196,6 +196,63 @@ export interface LockerRepository {
 **Postcondiciones:**
 - Si el casillero pasó a `Maintenance`, se oculta de la vista de reservas de los socios.
 - Si el casillero volvió a `Available`, queda inmediatamente habilitado para nuevas reservas.
+**Caso de Uso:** `Alta de Reserva` (ReserveLocker)
+
+**Flujo paso a paso:**
+
+1. 
+  - validar la existencia del casillero a reservar
+  - validar que el estado del casillero sea estrictamente `Available`
+
+2. 
+  - mapear el `member_id` recibido en el DTO en la entidad asociada al casillero
+  - mapear el cambio de estado a `Occupied`
+
+3. 
+  - persistir el mapeo de dichos datos, a través de `LockerRepository.update()`
+
+4. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
+
+
+**Caso de Uso:** `Baja de Reserva` (ReleaseLocker)
+
+**Flujo paso a paso:**
+
+1. 
+  - validar la existencia del casillero a liberar
+  - validar que el estado del casillero sea `Occupied`
+  - validar que el `member_id` del casillero coincida con el id del socio en sesión para autorizar la acción
+
+2. 
+  - mapear la limpieza de datos en la entidad asociada (cambiar estado a `Available` y `member_id` a `null`)
+
+3. 
+  - persistir el mapeo de dichos datos de forma atómica, a través de `LockerRepository.update()`
+
+4. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
+
+
+**Caso de Uso:** `Actualización de Estado` (UpdateLockerStatus)
+
+**Flujo paso a paso:**
+
+1. 
+  - validar la existencia del casillero a modificar
+  - validar que solo se reciba el dato `status` (`Available` o `Maintenance`) o ignorar el resto de datos
+
+2. 
+  - validar que el estado actual del casillero no sea `Occupied` para prevenir bloqueos de casilleros en uso
+
+3. 
+  - mapear los datos del DTO recibido en la entidad asociada al casillero que se espera modificar
+
+4. 
+  - persistir el mapeo de dichos datos, a través de `LockerRepository.update()`
+
+5. 
+  - retornar el DTO de respuesta mapeado desde la entidad persistida actualizada
 
 ## 4. Casos de Borde y Manejo de Errores
 

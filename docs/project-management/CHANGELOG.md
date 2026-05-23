@@ -4,6 +4,42 @@ Todos los cambios importantes de este proyecto se documentan en este archivo.
 
 ENTIDAD: MEDICAL CERTIFICATES
 ---
+## [1.6.0] - 2026-05-17
+
+### Added
+- Se implementa el frontend completo de Medical Certificates: listado, alta, modificación y baja.
+- Se crea el servicio HTTP `medicalCertificates.ts` para consumir los endpoints del backend.
+- Se crea la vista `MedicalCertificates.tsx` con tabla, modal de alta y botones de acciones por fila.
+- Se agrega la ruta `/medical-certificates` y un link de navegación en el menú superior.
+- Se agrega una tarjeta de acceso en la página principal (Home).
+
+---
+## [1.5.0] - 2026-05-17
+
+### Added
+- Se implementa el backend de la Baja para Medical Certificates según el TDD-0006 (endpoint `DELETE /api/v1/medical-certificates/:id`).
+- Se implementa baja lógica usando el campo `deletedAt`, sin afectar otros campos del certificado.
+
+---
+## [1.4.0] - 2026-05-17
+
+### Added
+- Se implementa el backend de la Modificación para Medical Certificates según el TDD-0005 (endpoint `PATCH /api/v1/medical-certificates/:id`).
+- Se agrega el DTO `UpdateMedicalCertificateRequest` en `@alentapp/shared`.
+- Se agregan los métodos `findById` y `updateValidationStatus` al repositorio.
+
+---
+## [1.3.0] - 2026-05-16
+
+### Added
+- Se implementa el backend del Alta para Medical Certificates según el TDD-0004 (endpoint `POST /api/v1/medical-certificates`).
+- Se agrega el modelo `MedicalCertificate` al schema de Prisma con baja lógica vía `deletedAt`.
+- Se incorporan los DTOs `MedicalCertificateDTO` y `CreateMedicalCertificateRequest` al paquete compartido `@alentapp/shared`.
+- Se agrega endpoint `GET /api/v1/medical-certificates` para validación funcional del backend.
+
+### Fixed
+- Se declara `@alentapp/shared` como dependencia explícita del paquete `@alentapp/api` (estaba faltando).
+
 ## [1.2.0] - 2026-05-11
 
 ### Changed
