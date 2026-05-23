@@ -169,58 +169,7 @@ export interface LockerRepository {
 ```
 ### 3.2. Lógica del Caso de Uso
 
-#### CU-01: Alta de Reserva de Casillero
-
-**Descripción:** Permite a un socio registrado reservar un casillero disponible en el club.  
-**Actor Principal:** Socio
-
-**Precondiciones:**
-1. El socio debe estar autenticado en el sistema (sesión activa).
-2. El casillero debe existir y su `status` debe ser estrictamente `Available`.
-
-**Flujo Principal (Escenario de Éxito):**
-1. El socio ingresa a la sección de "Lockers" en la aplicación.
-2. El sistema muestra los casilleros disponibles.
-3. El socio selecciona un casillero y presiona "Reservar".
-4. El sistema envía `PATCH /api/v1/lockers/{id}/reserve` con el `member_id` en el body.
-5. El sistema valida que el casillero siga en estado `Available`.
-6. El sistema actualiza el registro: cambia `status` a `Occupied` y guarda el UUID del socio en `member_id`.
-7. El sistema confirma la reserva y le indica al socio el `number` y `location` del casillero.
-
-**Flujos Alternativos (Escenarios de Fallo):**
-- **A1. Casillero No Disponible:** En el paso 5, el casillero fue tomado por otro socio o pasado a `Maintenance`. El sistema rechaza la petición y muestra: *"Este casillero ya no se encuentra disponible. Por favor, seleccione otro."*
-- **A2. Falla de Infraestructura:** En el paso 6, ocurre un error de base de datos. El sistema aborta la transacción y muestra un mensaje de error genérico invitando a reintentar.
-
-**Postcondiciones:**
-- El casillero queda inaccesible para otros socios.
-- El socio queda vinculado al casillero hasta que ejecute la acción de liberación.
-
-#### CU-02: Baja de Reserva (Liberación de Casillero)
-
-**Descripción:** Permite a un socio liberar el casillero que tiene asignado, dejándolo disponible para otros miembros.  
-**Actor Principal:** Socio
-
-**Precondiciones:**
-1. El socio debe estar autenticado en el sistema (sesión activa).
-2. El casillero debe tener `status: Occupied` y el `member_id` debe coincidir con el UUID del socio en sesión.
-
-**Flujo Principal (Escenario de Éxito):**
-1. El socio ingresa a "Mi Casillero" y visualiza su casillero asignado.
-2. El socio presiona "Liberar Casillero" y confirma la acción.
-3. El sistema envía `PATCH /api/v1/lockers/{id}/release`.
-4. El sistema valida que el `member_id` del casillero coincida con el token de sesión.
-5. El sistema actualiza el registro: cambia `status` a `Available` y setea `member_id` a `null`.
-6. El sistema confirma la liberación y redirige al socio a la pantalla principal.
-
-**Flujos Alternativos (Escenarios de Fallo):**
-- **A1. Error de Autorización:** En el paso 4, el `member_id` no coincide con el token de sesión. El sistema bloquea el request con `403 Forbidden` y muestra: *"Acceso denegado: no puedes liberar un casillero que no tienes asignado."*
-- **A2. Falla de Infraestructura:** En el paso 5, ocurre un error de base de datos. El sistema aplica un `rollback`, mantiene el casillero en `Occupied` y muestra: *"Ocurrió un error al intentar liberar el casillero. Por favor, intenta nuevamente."*
-
-**Postcondiciones:**
-- El casillero vuelve a `Available` y `member_id` queda en `null`.
-- El casillero vuelve a ser visible para todos los socios.
-
-#### CU-03: Actualización de Estado (Gestión de Mantenimiento)
+#### CU-01: Actualización de Estado (Gestión de Mantenimiento)
 
 **Descripción:** Permite a un administrador modificar el estado operativo de un casillero entre `Available` y `Maintenance`.  
 **Actor Principal:** Administrador
