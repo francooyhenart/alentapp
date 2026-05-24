@@ -9,16 +9,6 @@ async function parseError(response: Response, fallback: string) {
   }
 }
 
-// Función auxiliar para parsear errores del backend (si ya la tenés importada, podés borrar esta)
-const parseError = async (response: Response, defaultMessage: string): Promise<string> => {
-  try {
-    const errorData = await response.json();
-    return errorData.message || defaultMessage;
-  } catch {
-    return defaultMessage;
-  }
-};
-
 export const lockerService = {
   // Obtener todos los casilleros
   getAll: async () => {

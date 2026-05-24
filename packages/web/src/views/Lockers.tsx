@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, Text, SimpleGrid, Badge, Button, VStack, HStack, IconButton } from "@chakra-ui/react";
-import { LuTrash2 } from "react-icons/lu";
-import React, { useEffect, useState } from 'react';
 import { Box, Heading, Text, SimpleGrid, Badge, Button, VStack, HStack, Input, IconButton } from "@chakra-ui/react";
 import { LuTrash2 } from "react-icons/lu"; 
 import { lockerService } from '../services/lockers';
@@ -16,7 +13,6 @@ interface Locker {
 
 export function LockersView() {
   const [lockers, setLockers] = useState<Locker[]>([]);
-  
   const [newNumber, setNewNumber] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,7 +53,6 @@ export function LockersView() {
     fetchLockers();
   }, []);
 
-  // Función para manejar la eliminación (DELETE)
   const handleDelete = async (id: string, number: number, status: string) => {
     if (status.toLowerCase() !== 'available') {
       return alert("⚠️ No se puede eliminar un casillero que no esté disponible.");
@@ -67,13 +62,10 @@ export function LockersView() {
 
     setLoading(true);
     try {
-      // Intentamos pegarle al backend
       await lockerService.deleteLocker(id);
       setLockers(lockers.filter(l => l.id !== id));
       alert("¡Casillero eliminado con éxito de la base de datos!");
     } catch (error) {
-      // 🔥 SIMULACIÓN DE BAJA EN FRONT: 
-      // Como Postgres bloquea la baja real por FK, forzamos el borrado visual para probar la UI
       setLockers(lockers.filter(l => l.id !== id));
       alert("¡Casillero eliminado (Simulado en Frontend por restricción de BD)!");
     } finally {
@@ -175,7 +167,6 @@ export function LockersView() {
       <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="6">
         {lockers.map((locker) => {
           const badgeInfo = getBadgeProps(locker.status);
-          const isAvailable = locker.status.toLowerCase() === 'available';
           
           return (
             <Box key={locker.id} p="5" borderWidth="1px" borderRadius="2xl" bg="bg.panel" shadow="sm" display="flex" flexDirection="column" justifyContent="space-between">
@@ -188,6 +179,7 @@ export function LockersView() {
                       {badgeInfo.label}
                     </Badge>
                     
+                    {/* BOTÓN DE BORRADO CONTROLADO */}
                     <IconButton
                       type="button"
                       aria-label="Eliminar casillero"
@@ -197,20 +189,6 @@ export function LockersView() {
                       disabled={loading || locker.status !== 'Available'}
                       onClick={(e) => {
                         e.stopPropagation();
-                    <Badge colorScheme={isAvailable ? 'green' : 'red'} borderRadius="full" px="3">
-                      {isAvailable ? 'Disponible' : 'Ocupado'}
-                    </Badge>
-                    
-                    {/* 🔥 BOTÓN DE BORRADO CONTROLADO E INMUNIZADO CONTRA FORMULARIOS */}
-                    <IconButton
-                      type="button"
-                      aria-label="Eliminar casillero"
-                      colorScheme={isAvailable ? "red" : "gray"}
-                      variant="ghost"
-                      size="sm"
-                      disabled={loading || !isAvailable}
-                      onClick={(e) => {
-                        e.stopPropagation(); // Evitamos que el clic se mueva a otros componentes
                         handleDelete(locker.id, locker.number, locker.status);
                       }}
                     >
@@ -248,14 +226,6 @@ export function LockersView() {
                   {locker.status === 'Maintenance' && (
                     <Button isLoading={loading} colorScheme="green" w="full" onClick={() => handleStatusChange(locker.id, locker.status, 'Available')}>
                       ✅ Rehabilitar Casillero
-                <Box mt="4">
-                  {isAvailable ? (
-                    <Button loading={loading} colorScheme="blue" w="full" onClick={() => handleReserve(locker.id)}>
-                      Reservar Casillero
-                    </Button>
-                  ) : (
-                    <Button loading={loading} colorScheme="gray" w="full" onClick={() => handleRelease(locker.id)}>
-                      Liberar Casillero
                     </Button>
                   )}
                 </Box>
