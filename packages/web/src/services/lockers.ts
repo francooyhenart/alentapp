@@ -1,76 +1,84 @@
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1/lockers';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
-async function parseError(response: Response, fallback: string) {
-  try {
-    const errorData = await response.json();
-    return errorData.error || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export const lockerService = {
-  // Obtener todos los casilleros
-  getAll: async () => {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error(await parseError(response, 'Error al obtener los casilleros'));
-    return response.json();
+const lockerService = {
+  // 1. Traer todos los casilleros
+  async getAll() {
+    const response = await fetch(`${API_URL}/lockers`);
+    if (!response.ok) {
+      throw new Error('Error al obtener los casilleros');
+    }
+    return await response.json(); 
   },
 
-  // Crear un nuevo casillero
-  // Método para crear (POST)
-  createLocker: async (number: number, location: string) => {
-    const response = await fetch(API_URL, {
+  // 2. Crear un nuevo casillero
+  async createLocker(number: number, location: string) {
+    const response = await fetch(`${API_URL}/lockers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number, location }),
+      body: JSON.stringify({ number, location })
     });
-    if (!response.ok) throw new Error(await parseError(response, 'Error al crear el casillero'));
-    return response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al crear el casillero');
+    }
+    return await response.json();
   },
 
-  // Reservar un casillero (PATCH)
-  // Para reservar (PATCH)
-  reserveLocker: async (id: string, memberId: string) => {
-    const response = await fetch(`${API_URL}/${id}/reserve`, {
+ // 3. Reservar un casillero
+  async reserveLocker(id: string, memberId: string) {
+    const response = await fetch(`${API_URL}/lockers/${id}/reserve`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ member_id: memberId }),
+      body: JSON.stringify({ member_id: memberId })
     });
-    if (!response.ok) throw new Error(await parseError(response, 'Error al reservar el casillero'));
-    return response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al reservar el casillero');
+    }
+    return await response.json();
   },
 
-  // Liberar un casillero (PATCH con cabecera)
-  // Para liberar (PATCH)
-  releaseLocker: async (id: string, memberId: string) => {
-    const response = await fetch(`${API_URL}/${id}/release`, {
+  // 4. Liberar un casillero (Agregamos la cabecera x-user-id requerida por Fastify)
+  async releaseLocker(id: string, memberId: string) {
+    const response = await fetch(`${API_URL}/lockers/${id.trim()}/release`, {
       method: 'PATCH',
-      headers: { 'x-user-id': memberId },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-user-id': memberId // Satisface la validación del backend
+      },
+      body: JSON.stringify({ member_id: memberId, session_member_id: memberId })
     });
-    if (!response.ok) throw new Error(await parseError(response, 'Error al liberar el casillero'));
-    return response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al liberar el casillero');
+    }
+    return await response.json();
   },
 
-  // Eliminar un casillero
-  // NUEVO: Método para eliminar un casillero (DELETE)
-  deleteLocker: async (id: string) => {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error(await parseError(response, 'Error al eliminar el casillero'));
-    // Generalmente los DELETE devuelven 204 No Content, si el tuyo devuelve JSON, descomentá la línea de abajo:
-    // return response.json();
-  },
-
-  // Cambiar el estado a Mantenimiento o Disponible
-  updateStatus: async (id: string, status: 'Available' | 'Maintenance') => {
-    const response = await fetch(`${API_URL}/${id}/status`, {
+  // 5. Cambiar estado
+  async updateStatus(id: string, status: 'Available' | 'Maintenance') {
+    const response = await fetch(`${API_URL}/lockers/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status })
     });
-    if (!response.ok) throw new Error(await parseError(response, 'Error al actualizar el estado del casillero'));
-    return response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al cambiar el estado');
+    }
+    return await response.json();
+  },
+
+  // 6. Eliminar un casillero
+  async deleteLocker(id: string) {
+    const response = await fetch(`${API_URL}/lockers/${id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al eliminar el casillero');
+    }
   }
 };
+
+export default lockerService;
