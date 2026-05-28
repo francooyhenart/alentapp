@@ -352,5 +352,17 @@ describe('Sport API Integration Tests', () => {
                 },
             ]);
         });
+
+        //test de integración 44 - GET: debe retornar 400 si el parametro name esta vacio
+        it('debe retornar 400 si el parametro name esta vacio', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=   ',
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El parametro de busqueda name no puede estar vacio');
+        });
     });
 });
