@@ -472,5 +472,20 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El cupo maximo debe ser un numero entero');
         });
+
+        //test de integración 59 - PATCH: debe retornar 400 si el cupo maximo es menor o igual a cero
+        it('debe retornar 400 si el cupo maximo es menor o igual a cero', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    max_capacity: 0,
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El cupo maximo debe ser mayor a cero');
+        });
     });
 });
