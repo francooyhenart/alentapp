@@ -241,5 +241,32 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El cupo maximo debe ser un numero entero');
         });
+
+        //test de integración 35 - POST: debe crear un deporte con precio adicional por defecto en cero
+        it('debe crear un deporte con precio adicional por defecto en cero', async () => {
+            const payload: CreateSportRequest = {
+                name: 'Rugby',
+                description: 'Actividad de rugby',
+                max_capacity: 25,
+                requires_medical_certificate: false,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(201);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual({
+                id: 'new-sport-id',
+                name: 'Rugby',
+                description: 'Actividad de rugby',
+                max_capacity: 25,
+                additional_price: 0,
+                requires_medical_certificate: false,
+            });
+        });
     });
 });
