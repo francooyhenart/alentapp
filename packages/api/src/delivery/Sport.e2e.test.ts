@@ -140,4 +140,23 @@ describe('Sport API End-to-End Tests', () => {
             },
         ]);
     });
+
+    //test 48 - e2e GET: debe retornar 404 si no hay deportes que coincidan en la base de datos real
+    it('debe retornar 404 si no hay deportes que coincidan en la base de datos real', async () => {
+        const missingSportName = `Deporte inexistente ${randomSuffix}`;
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/sports?name=${encodeURIComponent(missingSportName)}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+        const body = JSON.parse(response.payload);
+        expect(body.error).toBe('No existen deportes que coincidan con el criterio de busqueda');
+
+        const dbSports = await prisma.sport.findMany({
+            where: { name: { contains: missingSportName, mode: 'insensitive' } },
+        });
+        expect(dbSports).toHaveLength(0);
+    });
 });
