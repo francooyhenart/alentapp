@@ -125,4 +125,19 @@ describe('CreateSportUseCase', () => {
         expect(mockSportRepo.findByName).not.toHaveBeenCalled();
         expect(mockSportRepo.create).not.toHaveBeenCalled();
     });
+
+    //test unitario 26 - debe lanzar error si el cupo maximo es menor o igual a cero
+    it('debe lanzar error si el cupo maximo es menor o igual a cero', async () => {
+        const request: CreateSportRequest = {
+            name: 'Basquet',
+            description: 'Actividad de basquet',
+            max_capacity: 0,
+            additional_price: 700,
+            requires_medical_certificate: false,
+        };
+
+        await expect(useCase.execute(request)).rejects.toThrow('El cupo maximo debe ser un numero entero mayor a cero');
+        expect(mockSportRepo.findByName).not.toHaveBeenCalled();
+        expect(mockSportRepo.create).not.toHaveBeenCalled();
+    });
 });
