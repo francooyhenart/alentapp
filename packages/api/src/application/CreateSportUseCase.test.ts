@@ -140,4 +140,19 @@ describe('CreateSportUseCase', () => {
         expect(mockSportRepo.findByName).not.toHaveBeenCalled();
         expect(mockSportRepo.create).not.toHaveBeenCalled();
     });
+
+    //test unitario 27 - debe lanzar error si el precio adicional es negativo
+    it('debe lanzar error si el precio adicional es negativo', async () => {
+        const request: CreateSportRequest = {
+            name: 'Hockey',
+            description: 'Actividad de hockey',
+            max_capacity: 18,
+            additional_price: -1,
+            requires_medical_certificate: true,
+        };
+
+        await expect(useCase.execute(request)).rejects.toThrow('El precio adicional no puede ser negativo');
+        expect(mockSportRepo.findByName).not.toHaveBeenCalled();
+        expect(mockSportRepo.create).not.toHaveBeenCalled();
+    });
 });
