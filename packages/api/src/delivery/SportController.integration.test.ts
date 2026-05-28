@@ -70,7 +70,26 @@ vi.mock('../infrastructure/di/container.js', () => {
 vi.mock('../infrastructure/PrismaSportRepository.js', () => {
     return {
         PrismaSportRepository: class {
-            async findAll() { return []; }
+            async findAll() {
+                return [
+                    {
+                        id: 'sport-id-1',
+                        name: 'Basquet',
+                        description: 'Actividad de basquet',
+                        max_capacity: 20,
+                        additional_price: 1000,
+                        requires_medical_certificate: false,
+                    },
+                    {
+                        id: 'sport-id-2',
+                        name: 'Tenis',
+                        description: 'Actividad de tenis',
+                        max_capacity: 12,
+                        additional_price: 1500,
+                        requires_medical_certificate: true,
+                    },
+                ];
+            }
             async findByName(name: string) {
                 return name === 'Deporte duplicado'
                     ? {
@@ -267,6 +286,37 @@ describe('Sport API Integration Tests', () => {
                 additional_price: 0,
                 requires_medical_certificate: false,
             });
+        });
+    });
+
+    describe('GET /api/v1/sports', () => {
+        //test de integración 42 - GET: debe retornar el listado de deportes
+        it('debe retornar el listado de deportes', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual([
+                {
+                    id: 'sport-id-1',
+                    name: 'Basquet',
+                    description: 'Actividad de basquet',
+                    max_capacity: 20,
+                    additional_price: 1000,
+                    requires_medical_certificate: false,
+                },
+                {
+                    id: 'sport-id-2',
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                },
+            ]);
         });
     });
 });
