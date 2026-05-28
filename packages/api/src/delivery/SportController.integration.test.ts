@@ -425,5 +425,21 @@ describe('Sport API Integration Tests', () => {
                 requires_medical_certificate: true,
             });
         });
+
+        //test de integración 56 - PATCH: debe retornar 400 si se intenta modificar el nombre del deporte
+        it('debe retornar 400 si se intenta modificar el nombre del deporte', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    name: 'Nuevo nombre',
+                    description: 'Descripcion actualizada',
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('No se permite modificar el nombre del deporte');
+        });
     });
 });
