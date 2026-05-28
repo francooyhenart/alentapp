@@ -127,4 +127,38 @@ describe('UpdateSportUseCase', () => {
         expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-1');
         expect(mockSportRepo.update).not.toHaveBeenCalled();
     });
+
+    //test unitario 54 - debe actualizar solo la descripcion si no se envia cupo maximo
+    it('debe actualizar solo la descripcion si no se envia cupo maximo', async () => {
+        const existingSport = new Sport(
+            'sport-id-1',
+            'Tenis',
+            'Actividad de tenis',
+            12,
+            1500,
+            true,
+        );
+
+        const updatedSport = new Sport(
+            'sport-id-1',
+            'Tenis',
+            'Descripcion actualizada',
+            12,
+            1500,
+            true,
+        );
+
+        vi.mocked(mockSportRepo.findById).mockResolvedValueOnce(existingSport);
+        vi.mocked(mockSportRepo.update).mockResolvedValueOnce(updatedSport);
+
+        const result = await useCase.execute('sport-id-1', {
+            description: ' Descripcion actualizada ',
+        });
+
+        expect(mockSportRepo.update).toHaveBeenCalledWith('sport-id-1', {
+            description: 'Descripcion actualizada',
+        });
+        expect(result.description).toBe('Descripcion actualizada');
+        expect(result.max_capacity).toBe(12);
+    });
 });
