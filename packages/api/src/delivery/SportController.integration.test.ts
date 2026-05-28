@@ -125,5 +125,26 @@ describe('Sport API Integration Tests', () => {
                 requires_medical_certificate: true,
             });
         });
+
+        //test de integración 30 - POST: debe retornar 400 si el nombre del deporte esta vacio
+        it('debe retornar 400 si el nombre del deporte esta vacio', async () => {
+            const payload: CreateSportRequest = {
+                name: '   ',
+                description: 'Actividad sin nombre',
+                max_capacity: 20,
+                additional_price: 1500,
+                requires_medical_certificate: true,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El nombre del deporte es obligatorio');
+        });
     });
 });
