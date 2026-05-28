@@ -46,12 +46,13 @@ export async function LockerController(fastify: FastifyInstance) {
     }
   });
 
-  // 2. Endpoint DELETE para dar de baja un locker
+// 2. Endpoint DELETE para dar de baja un locker
   fastify.delete('/lockers/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const result = DeleteLockerParamsSchema.safeParse(request.params);
       if (!result.success) {
-        const firstError = result.error.errors[0].message;
+        // 👇 CAMBIAR SOLO ESTA LÍNEA: de .errors a .issues
+        const firstError = result.error.issues[0].message;
         return reply.status(400).send({ error: firstError });
       }
       const { id } = result.data;
