@@ -500,5 +500,17 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(204);
             expect(response.payload).toBe('');
         });
+
+        //test de integración 65 - DELETE: debe retornar 400 si el id no tiene formato valido
+        it('debe retornar 400 si el id no tiene formato valido', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/sports/id-invalido',
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El formato del id del deporte no es valido');
+        });
     });
 });
