@@ -97,4 +97,26 @@ describe('Sport API End-to-End Tests', () => {
 
         expect(dbSports).toHaveLength(1);
     });
+
+    //test 46 - e2e GET: debe retornar el listado de deportes desde la base de datos real
+    it('debe retornar el listado de deportes desde la base de datos real', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload);
+        expect(Array.isArray(body.data)).toBe(true);
+
+        const createdSport = body.data.find((sport: any) => sport.id === createdSportId);
+        expect(createdSport).toEqual({
+            id: createdSportId,
+            name: testSportName,
+            description: 'Actividad creada desde test e2e',
+            max_capacity: 20,
+            additional_price: 1500,
+            requires_medical_certificate: true,
+        });
+    });
 });
