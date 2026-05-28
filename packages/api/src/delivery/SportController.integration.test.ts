@@ -441,5 +441,21 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('No se permite modificar el nombre del deporte');
         });
+
+        //test de integración 57 - PATCH: debe retornar 404 si el deporte no existe
+        it('debe retornar 404 si el deporte no existe', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-inexistente',
+                payload: {
+                    description: 'Descripcion actualizada',
+                    max_capacity: 18,
+                },
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El deporte no existe');
+        });
     });
 });
