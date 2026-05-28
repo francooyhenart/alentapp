@@ -38,4 +38,14 @@ describe('DeleteSportUseCase', () => {
         expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-1');
         expect(mockSportRepo.deleteById).toHaveBeenCalledWith('sport-id-1');
     });
+
+    //test unitario 63 - debe lanzar error si el deporte no existe
+    it('debe lanzar error si el deporte no existe', async () => {
+        vi.mocked(mockSportRepo.findById).mockResolvedValueOnce(null);
+
+        await expect(useCase.execute('sport-id-inexistente')).rejects.toThrow('El deporte no existe');
+
+        expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-inexistente');
+        expect(mockSportRepo.deleteById).not.toHaveBeenCalled();
+    });
 });
