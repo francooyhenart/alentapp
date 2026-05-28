@@ -85,4 +85,25 @@ describe('UpdateSportUseCase', () => {
         expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-inexistente');
         expect(mockSportRepo.update).not.toHaveBeenCalled();
     });
+
+    //test unitario 52 - debe lanzar error si el cupo maximo no es entero
+    it('debe lanzar error si el cupo maximo no es entero', async () => {
+        const existingSport = new Sport(
+            'sport-id-1',
+            'Tenis',
+            'Actividad de tenis',
+            12,
+            1500,
+            true,
+        );
+
+        vi.mocked(mockSportRepo.findById).mockResolvedValueOnce(existingSport);
+
+        await expect(useCase.execute('sport-id-1', {
+            max_capacity: 12.5,
+        })).rejects.toThrow('El cupo maximo debe ser un numero entero mayor a cero');
+
+        expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-1');
+        expect(mockSportRepo.update).not.toHaveBeenCalled();
+    });
 });
