@@ -159,4 +159,37 @@ describe('Sport API End-to-End Tests', () => {
         });
         expect(dbSports).toHaveLength(0);
     });
+
+    //test 60 - e2e PATCH: debe actualizar un deporte en la base de datos real
+    it('debe actualizar un deporte en la base de datos real', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${createdSportId}`,
+            payload: {
+                description: 'Actividad actualizada desde test e2e',
+                max_capacity: 30,
+            },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload);
+        expect(body.data).toEqual({
+            id: createdSportId,
+            name: testSportName,
+            description: 'Actividad actualizada desde test e2e',
+            max_capacity: 30,
+            additional_price: 1500,
+            requires_medical_certificate: true,
+        });
+
+        const dbSport = await prisma.sport.findUnique({
+            where: { id: createdSportId },
+        });
+
+        expect(dbSport).not.toBeNull();
+        expect(dbSport?.description).toBe('Actividad actualizada desde test e2e');
+        expect(dbSport?.max_capacity).toBe(30);
+        expect(dbSport?.name).toBe(testSportName);
+    });
+
 });
