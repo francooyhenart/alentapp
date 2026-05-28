@@ -199,5 +199,26 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('Ya existe un deporte con ese nombre');
         });
+
+        //test de integración 33 - POST: debe retornar 400 si el precio adicional es negativo
+        it('debe retornar 400 si el precio adicional es negativo', async () => {
+            const payload: CreateSportRequest = {
+                name: 'Hockey',
+                description: 'Actividad de hockey',
+                max_capacity: 18,
+                additional_price: -1,
+                requires_medical_certificate: true,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El precio adicional no puede ser negativo');
+        });
     });
 });
