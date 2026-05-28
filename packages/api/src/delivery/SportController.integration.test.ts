@@ -220,5 +220,26 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El precio adicional no puede ser negativo');
         });
+
+        //test de integración 34 - POST: debe retornar 400 si el cupo maximo no es entero
+        it('debe retornar 400 si el cupo maximo no es entero', async () => {
+            const payload: CreateSportRequest = {
+                name: 'Voley',
+                description: 'Actividad de voley',
+                max_capacity: 12.5,
+                additional_price: 900,
+                requires_medical_certificate: false,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El cupo maximo debe ser un numero entero');
+        });
     });
 });
