@@ -1,0 +1,64 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { UpdateSportUseCase } from './UpdateSportUseCase.js';
+import { Sport } from '../domain/Sport.js';
+import { SportRepository } from '../domain/SportRepository.js';
+
+describe('UpdateSportUseCase', () => {
+    const mockSportRepo = {
+        create: vi.fn(),
+        findByName: vi.fn(),
+        findById: vi.fn(),
+        findAll: vi.fn(),
+        update: vi.fn(),
+        deleteById: vi.fn(),
+    } as unknown as SportRepository;
+
+    const useCase = new UpdateSportUseCase(mockSportRepo);
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    //test unitario 49 - debe actualizar la descripcion y el cupo maximo de un deporte
+    it('debe actualizar la descripcion y el cupo maximo de un deporte', async () => {
+        const existingSport = new Sport(
+            'sport-id-1',
+            'Tenis',
+            'Actividad de tenis',
+            12,
+            1500,
+            true,
+        );
+
+        const updatedSport = new Sport(
+            'sport-id-1',
+            'Tenis',
+            'Nueva descripcion de tenis',
+            20,
+            1500,
+            true,
+        );
+
+        vi.mocked(mockSportRepo.findById).mockResolvedValueOnce(existingSport);
+        vi.mocked(mockSportRepo.update).mockResolvedValueOnce(updatedSport);
+
+        const result = await useCase.execute('sport-id-1', {
+            description: ' Nueva descripcion de tenis ',
+            max_capacity: 20,
+        });
+
+        expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-1');
+        expect(mockSportRepo.update).toHaveBeenCalledWith('sport-id-1', {
+            description: 'Nueva descripcion de tenis',
+            max_capacity: 20,
+        });
+        expect(result).toEqual({
+            id: 'sport-id-1',
+            name: 'Tenis',
+            description: 'Nueva descripcion de tenis',
+            max_capacity: 20,
+            additional_price: 1500,
+            requires_medical_certificate: true,
+        });
+    });
+});
