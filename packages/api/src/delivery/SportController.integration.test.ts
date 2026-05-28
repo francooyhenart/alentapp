@@ -70,7 +70,20 @@ vi.mock('../infrastructure/di/container.js', () => {
 vi.mock('../infrastructure/PrismaSportRepository.js', () => {
     return {
         PrismaSportRepository: class {
-            async findAll() {
+            async findAll(name?: string) {
+                if (name === 'Tenis') {
+                    return [
+                        {
+                            id: 'sport-id-2',
+                            name: 'Tenis',
+                            description: 'Actividad de tenis',
+                            max_capacity: 12,
+                            additional_price: 1500,
+                            requires_medical_certificate: true,
+                        },
+                    ];
+                }
+
                 return [
                     {
                         id: 'sport-id-1',
@@ -308,6 +321,27 @@ describe('Sport API Integration Tests', () => {
                     additional_price: 1000,
                     requires_medical_certificate: false,
                 },
+                {
+                    id: 'sport-id-2',
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                },
+            ]);
+        });
+
+        //test de integración 43 - GET: debe buscar deportes por nombre
+        it('debe buscar deportes por nombre', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=Tenis',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual([
                 {
                     id: 'sport-id-2',
                     name: 'Tenis',
