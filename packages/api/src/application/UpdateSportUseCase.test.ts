@@ -61,4 +61,15 @@ describe('UpdateSportUseCase', () => {
             requires_medical_certificate: true,
         });
     });
+
+    //test unitario 50 - debe lanzar error si se intenta modificar el nombre del deporte
+    it('debe lanzar error si se intenta modificar el nombre del deporte', async () => {
+        await expect(useCase.execute('sport-id-1', {
+            name: 'Nuevo nombre',
+            description: 'Nueva descripcion',
+        })).rejects.toThrow('No se permite modificar el nombre del deporte');
+
+        expect(mockSportRepo.findById).not.toHaveBeenCalled();
+        expect(mockSportRepo.update).not.toHaveBeenCalled();
+    });
 });
