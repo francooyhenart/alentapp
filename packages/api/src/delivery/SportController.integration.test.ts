@@ -512,5 +512,17 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El formato del id del deporte no es valido');
         });
+
+        //test de integración 66 - DELETE: debe retornar 404 si el deporte no existe
+        it('debe retornar 404 si el deporte no existe', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/sports/22222222-2222-4222-8222-222222222222',
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El deporte no existe');
+        });
     });
 });
