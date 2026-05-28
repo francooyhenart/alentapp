@@ -110,4 +110,19 @@ describe('CreateSportUseCase', () => {
         expect(mockSportRepo.findByName).not.toHaveBeenCalled();
         expect(mockSportRepo.create).not.toHaveBeenCalled();
     });
+
+    //test unitario 25 - debe lanzar error si el cupo maximo no es entero
+    it('debe lanzar error si el cupo maximo no es entero', async () => {
+        const request: CreateSportRequest = {
+            name: 'Natacion',
+            description: 'Actividad de natacion',
+            max_capacity: 10.5,
+            additional_price: 800,
+            requires_medical_certificate: true,
+        };
+
+        await expect(useCase.execute(request)).rejects.toThrow('El cupo maximo debe ser un numero entero mayor a cero');
+        expect(mockSportRepo.findByName).not.toHaveBeenCalled();
+        expect(mockSportRepo.create).not.toHaveBeenCalled();
+    });
 });
