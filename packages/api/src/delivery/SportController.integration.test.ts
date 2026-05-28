@@ -83,6 +83,9 @@ vi.mock('../infrastructure/PrismaSportRepository.js', () => {
                         },
                     ];
                 }
+                if (name === 'Hockey') {
+                    return [];
+                }
 
                 return [
                     {
@@ -363,6 +366,18 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(400);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El parametro de busqueda name no puede estar vacio');
+        });
+
+        //test de integración 45 - GET: debe retornar 404 si no existen deportes que coincidan con la busqueda
+        it('debe retornar 404 si no existen deportes que coincidan con la busqueda', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=Hockey',
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('No existen deportes que coincidan con el criterio de busqueda');
         });
     });
 });
