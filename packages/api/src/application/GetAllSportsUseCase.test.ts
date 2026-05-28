@@ -79,4 +79,12 @@ describe('GetAllSportsUseCase', () => {
         await expect(useCase.execute('   ')).rejects.toThrow('El parametro de busqueda name no puede estar vacio');
         expect(mockSportRepo.findAll).not.toHaveBeenCalled();
     });
+
+    //test unitario 41 - debe lanzar error si no existen deportes que coincidan con la busqueda
+    it('debe lanzar error si no existen deportes que coincidan con la busqueda', async () => {
+        vi.mocked(mockSportRepo.findAll).mockResolvedValueOnce([]);
+
+        await expect(useCase.execute('Hockey')).rejects.toThrow('No existen deportes que coincidan con el criterio de busqueda');
+        expect(mockSportRepo.findAll).toHaveBeenCalledWith('Hockey');
+    });
 });
