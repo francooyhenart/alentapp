@@ -155,4 +155,30 @@ describe('CreateSportUseCase', () => {
         expect(mockSportRepo.findByName).not.toHaveBeenCalled();
         expect(mockSportRepo.create).not.toHaveBeenCalled();
     });
+
+    //test unitario 28 - debe lanzar error si ya existe un deporte con el mismo nombre
+    it('debe lanzar error si ya existe un deporte con el mismo nombre', async () => {
+        const request: CreateSportRequest = {
+            name: 'Tenis',
+            description: 'Actividad duplicada',
+            max_capacity: 12,
+            additional_price: 1000,
+            requires_medical_certificate: false,
+        };
+
+        const existingSport = new Sport(
+            'existing-sport-id',
+            'Tenis',
+            'Actividad existente',
+            20,
+            1500,
+            true,
+        );
+
+        vi.mocked(mockSportRepo.findByName).mockResolvedValueOnce(existingSport);
+
+        await expect(useCase.execute(request)).rejects.toThrow('Ya existe un deporte con ese nombre');
+        expect(mockSportRepo.findByName).toHaveBeenCalledWith('Tenis');
+        expect(mockSportRepo.create).not.toHaveBeenCalled();
+    });
 });
