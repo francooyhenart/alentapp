@@ -70,4 +70,31 @@ describe('Sport API End-to-End Tests', () => {
         expect(Number(dbSport?.additional_price)).toBe(1500);
         expect(dbSport?.requires_medical_certificate).toBe(true);
     });
+
+    //test 37 - e2e POST: debe fallar si el nombre del deporte ya existe en la base de datos real
+    it('debe fallar si el nombre del deporte ya existe en la base de datos real', async () => {
+        const payload = {
+            name: testSportName,
+            description: 'Actividad duplicada desde test e2e',
+            max_capacity: 15,
+            additional_price: 500,
+            requires_medical_certificate: false,
+        };
+
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload,
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload);
+        expect(body.error).toBe('Ya existe un deporte con ese nombre');
+
+        const dbSports = await prisma.sport.findMany({
+            where: { name: testSportName },
+        });
+
+        expect(dbSports).toHaveLength(1);
+    });
 });
