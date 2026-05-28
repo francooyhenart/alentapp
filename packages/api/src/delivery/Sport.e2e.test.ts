@@ -192,4 +192,28 @@ describe('Sport API End-to-End Tests', () => {
         expect(dbSport?.name).toBe(testSportName);
     });
 
+    //test 61 - e2e PATCH: debe impedir modificar el nombre del deporte en la base de datos real
+    it('debe impedir modificar el nombre del deporte en la base de datos real', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${createdSportId}`,
+            payload: {
+                name: `Nuevo nombre ${randomSuffix}`,
+                description: 'Intento de cambio de nombre',
+            },
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload);
+        expect(body.error).toBe('No se permite modificar el nombre del deporte');
+
+        const dbSport = await prisma.sport.findUnique({
+            where: { id: createdSportId },
+        });
+
+        expect(dbSport).not.toBeNull();
+        expect(dbSport?.name).toBe(testSportName);
+        expect(dbSport?.description).toBe('Actividad actualizada desde test e2e');
+    });
+
 });
