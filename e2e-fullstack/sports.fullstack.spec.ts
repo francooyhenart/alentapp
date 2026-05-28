@@ -7,6 +7,7 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Sports Full-Stack E2E', () => {
+  // test 36 - e2e full-stack POST: debe crear un deporte real y mostrarlo en la tabla
   test('debe crear un deporte real y mostrarlo en la tabla', async ({ page }) => {
     await page.goto('/sports');
 
@@ -27,6 +28,7 @@ test.describe('Sports Full-Stack E2E', () => {
     await expect(page.getByText('$1500')).toBeVisible();
   });
 
+  // test 37 - e2e full-stack POST: debe mostrar error si el nombre del deporte ya existe
   test('debe mostrar error si se intenta crear un deporte con nombre repetido', async ({ page }) => {
     await page.goto('/sports');
 
@@ -44,5 +46,16 @@ test.describe('Sports Full-Stack E2E', () => {
 
     await expect(page.getByText('Ya existe un deporte con ese nombre')).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('button', { name: 'Crear Deporte' })).toBeVisible();
+  });
+
+  // test 46 - e2e full-stack GET: debe mostrar el listado de deportes desde la base de datos real
+  test('debe mostrar el listado de deportes desde la base de datos real', async ({ page }) => {
+    await page.goto('/sports');
+
+    await expect(page.getByText('Tenis Fullstack E2E')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Actividad creada desde Playwright fullstack')).toBeVisible();
+    await expect(page.getByText('12')).toBeVisible();
+    await expect(page.getByText('$1500')).toBeVisible();
+    await expect(page.getByText('No requerido')).toBeVisible();
   });
 });
