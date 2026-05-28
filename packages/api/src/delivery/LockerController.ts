@@ -2,14 +2,14 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { NewLockerUseCase, NewLockerInput } from '../application/NewLockerUseCase.js';
 import { DeleteLockerUseCase } from '../application/DeleteLockerUseCase.js';
-import { UpdateLockerStatusUseCase } from '../application/UpdateLockerStatusUseCase.js'; // 👈 Importamos el caso de uso
+import { UpdateLockerStatusUseCase } from '../application/UpdateLockerStatusUseCase.js';
 import { PrismaLockerRepository } from '../infrastructure/PrismaLockerRepository.js';
 
 const DeleteLockerParamsSchema = z.object({
   id: z.string().uuid({ message: 'El formato del ID de locker no es válido (debe ser UUID)' })
 });
 
-// 👈 Validaciones para el cambio de estado
+// Validaciones para el cambio de estado
 const UpdateStatusParamsSchema = z.object({
   id: z.string().uuid({ message: 'El formato del ID de locker no es válido (debe ser UUID)' })
 });
@@ -25,7 +25,7 @@ export async function LockerController(fastify: FastifyInstance) {
   const lockerRepository = new PrismaLockerRepository();
   const newLockerUseCase = new NewLockerUseCase(lockerRepository);
   const deleteLockerUseCase = new DeleteLockerUseCase(lockerRepository);
-  const updateLockerStatusUseCase = new UpdateLockerStatusUseCase(lockerRepository); // 👈 Instanciamos
+  const updateLockerStatusUseCase = new UpdateLockerStatusUseCase(lockerRepository); 
 
   // 1. Endpoint POST para crear el locker
   fastify.post('/lockers', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -51,7 +51,6 @@ export async function LockerController(fastify: FastifyInstance) {
     try {
       const result = DeleteLockerParamsSchema.safeParse(request.params);
       if (!result.success) {
-        // 👇 CAMBIAR SOLO ESTA LÍNEA: de .errors a .issues
         const firstError = result.error.issues[0].message;
         return reply.status(400).send({ error: firstError });
       }
@@ -64,27 +63,25 @@ export async function LockerController(fastify: FastifyInstance) {
     }
   });
 
-  // 3. Endpoint PATCH para actualizar estado operativo (Mantenimiento)
+ // 3. Endpoint PATCH para actualizar estado operativo (Mantenimiento)
   fastify.patch('/lockers/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // Validar Parámetros
       const paramResult = UpdateStatusParamsSchema.safeParse(request.params);
       if (!paramResult.success) {
-        return reply.status(400).send({ error: paramResult.error.errors[0].message });
+        return reply.status(400).send({ error: paramResult.error.issues[0].message });
       }
 
       // Validar Body
       const bodyResult = UpdateStatusBodySchema.safeParse(request.body);
       if (!bodyResult.success) {
-        return reply.status(400).send({ error: bodyResult.error.errors[0].message });
+        return reply.status(400).send({ error: bodyResult.error.issues[0].message });
       }
 
       const { id } = paramResult.data;
       const { status } = bodyResult.data;
 
-      // El caso de uso ya se encarga de tirar 409 si está "Occupied"
       const updatedLocker = await updateLockerStatusUseCase.execute(id, status);
-
       return reply.status(200).send(updatedLocker);
 
     } catch (error: any) {
@@ -92,4 +89,3 @@ export async function LockerController(fastify: FastifyInstance) {
       return reply.status(statusCode).send({ error: error.message });
     }
   });
-}
