@@ -73,4 +73,10 @@ describe('GetAllSportsUseCase', () => {
             },
         ]);
     });
+
+    //test unitario 40 - debe lanzar error si el parametro de busqueda name esta vacio
+    it('debe lanzar error si el parametro de busqueda name esta vacio', async () => {
+        await expect(useCase.execute('   ')).rejects.toThrow('El parametro de busqueda name no puede estar vacio');
+        expect(mockSportRepo.findAll).not.toHaveBeenCalled();
+    });
 });
