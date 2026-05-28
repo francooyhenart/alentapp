@@ -108,7 +108,6 @@ export function LockersView() {
   const handleRelease = async (id: string, currentMemberId: string | null) => {
     setLoading(true);
     try {
-      // Nos aseguramos de pasarle primero el ID del casillero, y después el del socio
       await lockerService.releaseLocker(id, currentMemberId || '');
       alert("¡Casillero liberado correctamente!");
       await fetchData();
@@ -118,6 +117,7 @@ export function LockersView() {
       setLoading(false);
     }
   };
+
   const handleStatusChange = async (id: string, currentStatus: string, nextStatus: 'Available' | 'Maintenance') => {
     if (currentStatus === 'Occupied') {
       return alert("⚠️ No se puede enviar a mantenimiento un casillero ocupado por un socio.");
@@ -184,7 +184,8 @@ export function LockersView() {
               />
             </Box>
           </HStack>
-          <Button type="submit" colorScheme="blue" isLoading={loading} alignSelf="flex-end" px="6">
+          {/* 👇 Corregido: de isLoading a loading */}
+          <Button type="submit" colorScheme="blue" loading={loading} alignSelf="flex-end" px="6">
             Crear Casillero
           </Button>
         </VStack>
@@ -264,21 +265,25 @@ export function LockersView() {
                   <Box mt="4">
                     {locker.status === 'Available' && (
                       <VStack gap="2" w="full">
-                        <Button isLoading={loading} colorScheme="blue" w="full" onClick={() => handleReserve(locker.id)}>
+                        {/* 👇 Corregido: de isLoading a loading */}
+                        <Button loading={loading} colorScheme="blue" w="full" onClick={() => handleReserve(locker.id)}>
                           Reservar Casillero
                         </Button>
-                        <Button isLoading={loading} colorScheme="orange" variant="outline" w="full" onClick={() => handleStatusChange(locker.id, locker.status, 'Maintenance')}>
+                        {/* 👇 Corregido: de isLoading a loading */}
+                        <Button loading={loading} colorScheme="orange" variant="outline" w="full" onClick={() => handleStatusChange(locker.id, locker.status, 'Maintenance')}>
                           🔧 Poner en Mantenimiento
                         </Button>
                       </VStack>
                     )}
                     {locker.status === 'Occupied' && (
-                      <Button isLoading={loading} colorScheme="gray" w="full" onClick={() => handleRelease(locker.id, locker.member_id)}>
+                      /* 👇 Corregido: de isLoading a loading */
+                      <Button loading={loading} colorScheme="gray" w="full" onClick={() => handleRelease(locker.id, locker.member_id)}>
                         Liberar Casillero
                       </Button>
                     )}
                     {locker.status === 'Maintenance' && (
-                      <Button isLoading={loading} colorScheme="green" w="full" onClick={() => handleStatusChange(locker.id, locker.status, 'Available')}>
+                      /* 👇 Corregido: de isLoading a loading */
+                      <Button loading={loading} colorScheme="green" w="full" onClick={() => handleStatusChange(locker.id, locker.status, 'Available')}>
                         ✅ Rehabilitar Casillero
                       </Button>
                     )}
