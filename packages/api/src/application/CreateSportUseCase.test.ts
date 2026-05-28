@@ -61,4 +61,38 @@ describe('CreateSportUseCase', () => {
             requires_medical_certificate: true,
         });
     });
+
+    //test unitario 23 - debe crear un deporte con precio adicional por defecto en cero
+    it('debe crear un deporte con precio adicional por defecto en cero', async () => {
+        const request: CreateSportRequest = {
+            name: 'Futbol',
+            description: 'Actividad de futbol',
+            max_capacity: 30,
+            requires_medical_certificate: false,
+        };
+
+        const createdSport = new Sport(
+            'sport-id-2',
+            'Futbol',
+            'Actividad de futbol',
+            30,
+            0,
+            false,
+        );
+
+        vi.mocked(mockSportRepo.findByName).mockResolvedValueOnce(null);
+        vi.mocked(mockSportRepo.create).mockResolvedValueOnce(createdSport);
+
+        const result = await useCase.execute(request);
+
+        expect(mockSportRepo.findByName).toHaveBeenCalledWith('Futbol');
+        expect(mockSportRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+            name: 'Futbol',
+            description: 'Actividad de futbol',
+            max_capacity: 30,
+            additional_price: 0,
+            requires_medical_certificate: false,
+        }));
+        expect(result.additional_price).toBe(0);
+    });
 });
