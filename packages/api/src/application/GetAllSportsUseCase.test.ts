@@ -50,4 +50,27 @@ describe('GetAllSportsUseCase', () => {
             },
         ]);
     });
+
+    //test unitario 39 - debe buscar deportes por nombre normalizando espacios
+    it('debe buscar deportes por nombre normalizando espacios', async () => {
+        const sports = [
+            new Sport('sport-id-2', 'Tenis', 'Actividad de tenis', 12, 1500, true),
+        ];
+
+        vi.mocked(mockSportRepo.findAll).mockResolvedValueOnce(sports);
+
+        const result = await useCase.execute('  Tenis  ');
+
+        expect(mockSportRepo.findAll).toHaveBeenCalledWith('Tenis');
+        expect(result).toEqual([
+            {
+                id: 'sport-id-2',
+                name: 'Tenis',
+                description: 'Actividad de tenis',
+                max_capacity: 12,
+                additional_price: 1500,
+                requires_medical_certificate: true,
+            },
+        ]);
+    });
 });
