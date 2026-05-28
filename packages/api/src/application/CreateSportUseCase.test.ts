@@ -95,4 +95,19 @@ describe('CreateSportUseCase', () => {
         }));
         expect(result.additional_price).toBe(0);
     });
+
+    //test unitario 24 - debe lanzar error si el nombre del deporte esta vacio
+    it('debe lanzar error si el nombre del deporte esta vacio', async () => {
+        const request: CreateSportRequest = {
+            name: '   ',
+            description: 'Actividad sin nombre',
+            max_capacity: 10,
+            additional_price: 500,
+            requires_medical_certificate: false,
+        };
+
+        await expect(useCase.execute(request)).rejects.toThrow('El nombre del deporte es obligatorio');
+        expect(mockSportRepo.findByName).not.toHaveBeenCalled();
+        expect(mockSportRepo.create).not.toHaveBeenCalled();
+    });
 });
