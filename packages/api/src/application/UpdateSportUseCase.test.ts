@@ -72,4 +72,17 @@ describe('UpdateSportUseCase', () => {
         expect(mockSportRepo.findById).not.toHaveBeenCalled();
         expect(mockSportRepo.update).not.toHaveBeenCalled();
     });
+
+    //test unitario 51 - debe lanzar error si el deporte no existe
+    it('debe lanzar error si el deporte no existe', async () => {
+        vi.mocked(mockSportRepo.findById).mockResolvedValueOnce(null);
+
+        await expect(useCase.execute('sport-id-inexistente', {
+            description: 'Nueva descripcion',
+            max_capacity: 15,
+        })).rejects.toThrow('El deporte no existe');
+
+        expect(mockSportRepo.findById).toHaveBeenCalledWith('sport-id-inexistente');
+        expect(mockSportRepo.update).not.toHaveBeenCalled();
+    });
 });
