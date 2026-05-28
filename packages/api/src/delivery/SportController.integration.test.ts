@@ -118,14 +118,35 @@ vi.mock('../infrastructure/PrismaSportRepository.js', () => {
                     }
                     : null;
             }
-            async findById() { return null; }
+            async findById(id: string) {
+                return id === 'sport-id-2'
+                    ? {
+                        id: 'sport-id-2',
+                        name: 'Tenis',
+                        description: 'Actividad de tenis',
+                        max_capacity: 12,
+                        additional_price: 1500,
+                        requires_medical_certificate: true,
+                    }
+                    : null;
+            }
             async create(data: any) {
                 return {
                     ...data,
                     id: 'new-sport-id',
                 };
             }
-            async update(id: string, data: any) { return { id, name: 'Tenis', additional_price: 1500, requires_medical_certificate: true, ...data }; }
+            async update(id: string, data: any) {
+                return {
+                    id,
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                    ...data,
+                };
+            }
             async deleteById() { return; }
         },
     };
@@ -378,6 +399,31 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(404);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('No existen deportes que coincidan con el criterio de busqueda');
+        });
+    });
+
+    describe('PATCH /api/v1/sports/:id', () => {
+        //test de integración 55 - PATCH: debe actualizar la descripcion y el cupo maximo de un deporte
+        it('debe actualizar la descripcion y el cupo maximo de un deporte', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    description: 'Descripcion actualizada de tenis',
+                    max_capacity: 18,
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual({
+                id: 'sport-id-2',
+                name: 'Tenis',
+                description: 'Descripcion actualizada de tenis',
+                max_capacity: 18,
+                additional_price: 1500,
+                requires_medical_certificate: true,
+            });
         });
     });
 });
