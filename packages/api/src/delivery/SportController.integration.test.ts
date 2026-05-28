@@ -146,5 +146,26 @@ describe('Sport API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El nombre del deporte es obligatorio');
         });
+
+        //test de integración 31 - POST: debe retornar 400 si el cupo maximo es menor o igual a cero
+        it('debe retornar 400 si el cupo maximo es menor o igual a cero', async () => {
+            const payload: CreateSportRequest = {
+                name: 'Basquet',
+                description: 'Actividad de basquet',
+                max_capacity: 0,
+                additional_price: 1500,
+                requires_medical_certificate: false,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El cupo maximo debe ser mayor a cero');
+        });
     });
 });
