@@ -71,7 +71,18 @@ vi.mock('../infrastructure/PrismaSportRepository.js', () => {
     return {
         PrismaSportRepository: class {
             async findAll() { return []; }
-            async findByName() { return null; }
+            async findByName(name: string) {
+                return name === 'Deporte duplicado'
+                    ? {
+                        id: 'existing-sport-id',
+                        name: 'Deporte duplicado',
+                        description: 'Actividad existente',
+                        max_capacity: 10,
+                        additional_price: 500,
+                        requires_medical_certificate: false,
+                    }
+                    : null;
+            }
             async findById() { return null; }
             async create(data: any) {
                 return {
@@ -166,6 +177,27 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(400);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El cupo maximo debe ser mayor a cero');
+        });
+
+        //test de integración 32 - POST: debe retornar 409 si ya existe un deporte con el mismo nombre
+        it('debe retornar 409 si ya existe un deporte con el mismo nombre', async () => {
+            const payload: CreateSportRequest = {
+                name: 'Deporte duplicado',
+                description: 'Actividad duplicada',
+                max_capacity: 15,
+                additional_price: 1000,
+                requires_medical_certificate: false,
+            };
+
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/sports',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(409);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('Ya existe un deporte con ese nombre');
         });
     });
 });
