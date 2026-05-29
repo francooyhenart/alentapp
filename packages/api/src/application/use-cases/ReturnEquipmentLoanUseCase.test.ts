@@ -65,4 +65,14 @@ describe('ReturnEquipmentLoanUseCase', () => {
 
         expect(mockLoanRepo.update).not.toHaveBeenCalled();
     });
+
+    // test unitario 76 - debe lanzar MissingNotesError al reportar daño sin notas suficientes
+    it('debe lanzar MissingNotesError al reportar daño sin notas suficientes', async () => {
+        await expect(
+        useCase.execute(VALID_LOAN_ID, { status: 'Damaged', notes: 'corto' }),
+        ).rejects.toThrow(MissingNotesError);
+
+        expect(mockLoanRepo.findById).not.toHaveBeenCalled();
+        expect(mockLoanRepo.update).not.toHaveBeenCalled();
+    });
 });
