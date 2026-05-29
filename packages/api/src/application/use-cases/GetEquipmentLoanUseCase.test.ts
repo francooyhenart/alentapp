@@ -49,4 +49,14 @@ describe('GetEquipmentLoansUseCase', () => {
         expect(result).toHaveLength(2);
         expect(result[0]).toMatchObject({ status: 'Loaned', isActive: true });
     });
+
+    // test unitario 72 - debe retornar un array vacío cuando no existen préstamos
+    it('debe retornar un array vacío cuando no existen préstamos', async () => {
+        vi.mocked(mockLoanRepo.findAll).mockResolvedValueOnce([]);
+
+        const result = await useCase.execute();
+
+        expect(mockLoanRepo.findAll).toHaveBeenCalledOnce();
+        expect(result).toEqual([]);
+    });
 });
