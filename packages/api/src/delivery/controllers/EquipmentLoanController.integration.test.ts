@@ -260,5 +260,18 @@ describe('EquipmentLoan API Integration Tests', () => {
             expect(body.status).toBe('Returned');
             expect(body.returnDate).not.toBeNull();
         });
+
+        // test de integración 85 - PATCH return: debe retornar 404 si el préstamo no existe
+        it('debe retornar 404 si el préstamo no existe', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/equipment-loans/00000000-0000-0000-0000-000000000000/return',
+                payload: { status: 'Returned' },
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.code).toBe('LOAN_NOT_FOUND');
+        });
     });
 });
