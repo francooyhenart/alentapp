@@ -58,4 +58,16 @@ test.describe('Sports Full-Stack E2E', () => {
     await expect(page.getByText('$1500')).toBeVisible();
     await expect(page.getByText('No requerido')).toBeVisible();
   });
+
+  // test 47 - e2e full-stack GET: debe buscar deportes por nombre en la base de datos real
+  test('debe buscar deportes por nombre en la base de datos real', async ({ page }) => {
+    await page.goto('/sports');
+
+    await page.getByLabel(/Buscar por nombre/i).fill('Tenis Fullstack E2E');
+    await page.getByRole('button', { name: /Buscar/i }).click();
+
+    await expect(page.getByText('Tenis Fullstack E2E')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Actividad creada desde Playwright fullstack')).toBeVisible();
+    await expect(page.getByText('$1500')).toBeVisible();
+  });
 });
