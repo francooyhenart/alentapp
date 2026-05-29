@@ -202,5 +202,36 @@ describe('EquipmentLoan API Integration Tests', () => {
             const body = JSON.parse(response.payload);
             expect(body.code).toBe('CATEGORY_RESTRICTION');
         });
+
+        // test de integración 82 - POST: debe retornar 400 si el itemName tiene menos de 3 caracteres
+        it('debe retornar 400 si el itemName tiene menos de 3 caracteres', async () => {
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/equipment-loans',
+                payload: {
+                    itemName: 'AB',
+                    memberDni: '12345678',
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+        });
+    });
+
+    // ── GET /api/v1/equipment-loans ─────────────────────────────────────────
+
+    describe('GET /api/v1/equipment-loans', () => {
+
+        // test de integración 83 - GET: debe retornar 200 y el listado de préstamos
+        it('debe retornar 200 y el listado de préstamos', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/equipment-loans',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(Array.isArray(body)).toBe(true);
+        });
     });
 });
