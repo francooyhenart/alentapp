@@ -60,4 +60,18 @@ describe('CreateEquipmentLoanUseCase', () => {
             );
         expect(result).toMatchObject({ itemName: 'Raqueta de tenis', status: 'Loaned' });
     });
+
+    // test unitario 69 - debe lanzar CategoryRestrictionError cuando el socio es de categoría Cadete
+    it('debe lanzar CategoryRestrictionError cuando el socio es de categoría Cadete', async () => {
+        const cadetMember = { id: VALID_MEMBER_ID, category: 'Cadete' };
+    
+        vi.mocked(mockMemberRepo.findByDni).mockResolvedValueOnce(cadetMember as any);
+    
+        await expect(
+        useCase.execute({ itemName: 'Pelota', memberDni: '87654321' }),
+        ).rejects.toThrow(CategoryRestrictionError);
+    
+        expect(mockLoanRepo.create).not.toHaveBeenCalled();
+    });
+
 });
