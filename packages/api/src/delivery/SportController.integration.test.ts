@@ -118,14 +118,35 @@ vi.mock('../infrastructure/PrismaSportRepository.js', () => {
                     }
                     : null;
             }
-            async findById() { return null; }
+            async findById(id: string) {
+                return id === 'sport-id-2'
+                    ? {
+                        id: 'sport-id-2',
+                        name: 'Tenis',
+                        description: 'Actividad de tenis',
+                        max_capacity: 12,
+                        additional_price: 1500,
+                        requires_medical_certificate: true,
+                    }
+                    : null;
+            }
             async create(data: any) {
                 return {
                     ...data,
                     id: 'new-sport-id',
                 };
             }
-            async update(id: string, data: any) { return { id, name: 'Tenis', additional_price: 1500, requires_medical_certificate: true, ...data }; }
+            async update(id: string, data: any) {
+                return {
+                    id,
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                    ...data,
+                };
+            }
             async deleteById() { return; }
         },
     };
@@ -378,6 +399,93 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(404);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('No existen deportes que coincidan con el criterio de busqueda');
+        });
+    });
+
+    describe('PATCH /api/v1/sports/:id', () => {
+        //test de integración 55 - PATCH: debe actualizar la descripcion y el cupo maximo de un deporte
+        it('debe actualizar la descripcion y el cupo maximo de un deporte', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    description: 'Descripcion actualizada de tenis',
+                    max_capacity: 18,
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual({
+                id: 'sport-id-2',
+                name: 'Tenis',
+                description: 'Descripcion actualizada de tenis',
+                max_capacity: 18,
+                additional_price: 1500,
+                requires_medical_certificate: true,
+            });
+        });
+
+        //test de integración 56 - PATCH: debe retornar 400 si se intenta modificar el nombre del deporte
+        it('debe retornar 400 si se intenta modificar el nombre del deporte', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    name: 'Nuevo nombre',
+                    description: 'Descripcion actualizada',
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('No se permite modificar el nombre del deporte');
+        });
+
+        //test de integración 57 - PATCH: debe retornar 404 si el deporte no existe
+        it('debe retornar 404 si el deporte no existe', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-inexistente',
+                payload: {
+                    description: 'Descripcion actualizada',
+                    max_capacity: 18,
+                },
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El deporte no existe');
+        });
+
+        //test de integración 58 - PATCH: debe retornar 400 si el cupo maximo no es entero
+        it('debe retornar 400 si el cupo maximo no es entero', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    max_capacity: 18.5,
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El cupo maximo debe ser un numero entero');
+        });
+
+        //test de integración 59 - PATCH: debe retornar 400 si el cupo maximo es menor o igual a cero
+        it('debe retornar 400 si el cupo maximo es menor o igual a cero', async () => {
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/sports/sport-id-2',
+                payload: {
+                    max_capacity: 0,
+                },
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El cupo maximo debe ser mayor a cero');
         });
     });
 });
