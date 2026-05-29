@@ -70,4 +70,14 @@ test.describe('Sports Full-Stack E2E', () => {
     await expect(page.getByText('Actividad creada desde Playwright fullstack')).toBeVisible();
     await expect(page.getByText('$1500')).toBeVisible();
   });
+
+  // test 48 - e2e full-stack GET: debe mostrar error si no hay deportes que coincidan en la base de datos real
+  test('debe mostrar error si no hay deportes que coincidan en la base de datos real', async ({ page }) => {
+    await page.goto('/sports');
+
+    await page.getByLabel(/Buscar por nombre/i).fill('Deporte Inexistente Fullstack');
+    await page.getByRole('button', { name: /Buscar/i }).click();
+
+    await expect(page.getByText('No se encontraron deportes')).toBeVisible({ timeout: 10000 });
+  });
 });
