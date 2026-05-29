@@ -66,4 +66,25 @@ describe('CancelEquipmentLoanUseCase', () => {
 
         expect(mockLoanRepo.update).not.toHaveBeenCalled();
     });
+
+    // test unitario 79 - debe lanzar AlreadyCanceledError al intentar cancelar un préstamo ya cancelado
+    it('debe lanzar AlreadyCanceledError al intentar cancelar un préstamo ya cancelado', async () => {
+        const alreadyCanceled = EquipmentLoan.reconstitute({
+        id: VALID_LOAN_ID,
+        itemName: 'Raqueta de tenis',
+        status: LoanStatusVO.createCanceled(),
+        isActive: false,
+        loanDate: new Date('2024-01-15'),
+        canceledDate: new Date('2024-01-20'),
+        memberId: VALID_MEMBER_ID,
+        });
+
+        vi.mocked(mockLoanRepo.findById).mockResolvedValueOnce(alreadyCanceled);
+
+        await expect(
+        useCase.execute(VALID_LOAN_ID, { reason: 'Intento duplicado' }),
+        ).rejects.toThrow(AlreadyCanceledError);
+
+        expect(mockLoanRepo.update).not.toHaveBeenCalled();
+    });
 });
