@@ -100,4 +100,18 @@ test.describe('Sports Full-Stack E2E', () => {
     await expect(page.getByText('Actividad actualizada desde Playwright fullstack')).toBeVisible();
     await expect(page.getByText('20')).toBeVisible();
   });
+
+  // test 61 - e2e full-stack PATCH: debe impedir modificar el nombre del deporte desde la UI
+  test('debe impedir modificar el nombre del deporte desde la UI', async ({ page }) => {
+    await page.goto('/sports');
+
+    await expect(page.getByText('Tenis Fullstack E2E')).toBeVisible({ timeout: 10000 });
+
+    await page.getByRole('button', { name: /Editar deporte/i }).first().click();
+    await expect(page.getByText('Editar Deporte')).toBeVisible();
+
+    const nameInput = page.getByRole('textbox', { name: 'Nombre' });
+    await expect(nameInput).toBeDisabled();
+    await expect(nameInput).toHaveValue('Tenis Fullstack E2E');
+  });
 });
