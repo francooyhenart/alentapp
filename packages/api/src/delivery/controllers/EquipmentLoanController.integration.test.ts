@@ -186,5 +186,21 @@ describe('EquipmentLoan API Integration Tests', () => {
             expect(body.status).toBe('Loaned');
             expect(body.isActive).toBe(true);
         });
+
+        // test de integración 81 - POST: debe retornar 403 si el socio es de categoría Cadete
+        it('debe retornar 403 si el socio es de categoría Cadete', async () => {
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/v1/equipment-loans',
+                payload: {
+                    itemName: 'Pelota de rugby',
+                    memberDni: '99887766',
+                },
+            });
+
+            expect(response.statusCode).toBe(403);
+            const body = JSON.parse(response.payload);
+            expect(body.code).toBe('CATEGORY_RESTRICTION');
+        });
     });
 });
