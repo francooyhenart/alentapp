@@ -274,4 +274,32 @@ describe('EquipmentLoan API Integration Tests', () => {
             expect(body.code).toBe('LOAN_NOT_FOUND');
         });
     });
+
+    // ── PATCH /api/v1/equipment-loans/:id/cancel ────────────────────────────
+
+    describe('PATCH /api/v1/equipment-loans/:id/cancel', () => {
+
+        // test de integración 86 - PATCH cancel: debe retornar 200 con isActive en false y estado Canceled
+        it('debe retornar 200 con isActive en false y estado Canceled', async () => {
+            // Creamos un préstamo nuevo para cancelarlo
+            const created = await app.inject({
+                method: 'POST',
+                url: '/api/v1/equipment-loans',
+                payload: { itemName: 'Casco de ciclismo', memberDni: '12345678' },
+            });
+            const { id } = JSON.parse(created.payload);
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/equipment-loans/${id}/cancel`,
+                payload: { reason: 'Cargado por error' },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.status).toBe('Canceled');
+            expect(body.isActive).toBe(false);
+            expect(body.canceledDate).not.toBeNull();
+        });
+    });
 });
