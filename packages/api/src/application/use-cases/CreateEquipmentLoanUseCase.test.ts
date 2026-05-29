@@ -74,4 +74,14 @@ describe('CreateEquipmentLoanUseCase', () => {
         expect(mockLoanRepo.create).not.toHaveBeenCalled();
     });
 
+    // test unitario 70 - debe lanzar MemberNotFoundError cuando el DNI no corresponde a ningún socio
+    it('debe lanzar MemberNotFoundError cuando el DNI no corresponde a ningún socio', async () => {
+        vi.mocked(mockMemberRepo.findByDni).mockResolvedValueOnce(null);
+    
+        await expect(
+        useCase.execute({ itemName: 'Pelota de rugby', memberDni: '11223344' }),
+        ).rejects.toThrow(MemberNotFoundError);
+    
+        expect(mockLoanRepo.create).not.toHaveBeenCalled();
+    });
 });
