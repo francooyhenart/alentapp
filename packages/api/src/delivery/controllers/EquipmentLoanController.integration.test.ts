@@ -234,4 +234,31 @@ describe('EquipmentLoan API Integration Tests', () => {
             expect(Array.isArray(body)).toBe(true);
         });
     });
+
+    // ── PATCH /api/v1/equipment-loans/:id/return ────────────────────────────
+
+    describe('PATCH /api/v1/equipment-loans/:id/return', () => {
+
+        // test de integración 84 - PATCH return: debe retornar 200 y el préstamo con estado Returned
+        it('debe retornar 200 y el préstamo con estado Returned', async () => {
+            // Primero creamos un préstamo para obtener un ID real del mock
+            const created = await app.inject({
+                method: 'POST',
+                url: '/api/v1/equipment-loans',
+                payload: { itemName: 'Paleta de pádel', memberDni: '12345678' },
+            });
+            const { id } = JSON.parse(created.payload);
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/equipment-loans/${id}/return`,
+                payload: { status: 'Returned' },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.status).toBe('Returned');
+            expect(body.returnDate).not.toBeNull();
+        });
+    });
 });
