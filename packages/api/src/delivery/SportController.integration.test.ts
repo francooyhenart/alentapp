@@ -70,7 +70,42 @@ vi.mock('../infrastructure/di/container.js', () => {
 vi.mock('../infrastructure/PrismaSportRepository.js', () => {
     return {
         PrismaSportRepository: class {
-            async findAll() { return []; }
+            async findAll(name?: string) {
+                if (name === 'Tenis') {
+                    return [
+                        {
+                            id: 'sport-id-2',
+                            name: 'Tenis',
+                            description: 'Actividad de tenis',
+                            max_capacity: 12,
+                            additional_price: 1500,
+                            requires_medical_certificate: true,
+                        },
+                    ];
+                }
+                if (name === 'Hockey') {
+                    return [];
+                }
+
+                return [
+                    {
+                        id: 'sport-id-1',
+                        name: 'Basquet',
+                        description: 'Actividad de basquet',
+                        max_capacity: 20,
+                        additional_price: 1000,
+                        requires_medical_certificate: false,
+                    },
+                    {
+                        id: 'sport-id-2',
+                        name: 'Tenis',
+                        description: 'Actividad de tenis',
+                        max_capacity: 12,
+                        additional_price: 1500,
+                        requires_medical_certificate: true,
+                    },
+                ];
+            }
             async findByName(name: string) {
                 return name === 'Deporte duplicado'
                     ? {
@@ -267,6 +302,82 @@ describe('Sport API Integration Tests', () => {
                 additional_price: 0,
                 requires_medical_certificate: false,
             });
+        });
+    });
+
+    describe('GET /api/v1/sports', () => {
+        //test de integración 42 - GET: debe retornar el listado de deportes
+        it('debe retornar el listado de deportes', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual([
+                {
+                    id: 'sport-id-1',
+                    name: 'Basquet',
+                    description: 'Actividad de basquet',
+                    max_capacity: 20,
+                    additional_price: 1000,
+                    requires_medical_certificate: false,
+                },
+                {
+                    id: 'sport-id-2',
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                },
+            ]);
+        });
+
+        //test de integración 43 - GET: debe buscar deportes por nombre
+        it('debe buscar deportes por nombre', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=Tenis',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+            expect(body.data).toEqual([
+                {
+                    id: 'sport-id-2',
+                    name: 'Tenis',
+                    description: 'Actividad de tenis',
+                    max_capacity: 12,
+                    additional_price: 1500,
+                    requires_medical_certificate: true,
+                },
+            ]);
+        });
+
+        //test de integración 44 - GET: debe retornar 400 si el parametro name esta vacio
+        it('debe retornar 400 si el parametro name esta vacio', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=   ',
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El parametro de busqueda name no puede estar vacio');
+        });
+
+        //test de integración 45 - GET: debe retornar 404 si no existen deportes que coincidan con la busqueda
+        it('debe retornar 404 si no existen deportes que coincidan con la busqueda', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/sports?name=Hockey',
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('No existen deportes que coincidan con el criterio de busqueda');
         });
     });
 });
