@@ -114,4 +114,18 @@ test.describe('Sports Full-Stack E2E', () => {
     await expect(nameInput).toBeDisabled();
     await expect(nameInput).toHaveValue('Tenis Fullstack E2E');
   });
+
+  // test 67 - e2e full-stack DELETE: debe eliminar un deporte de la base de datos real
+  test('debe eliminar un deporte de la base de datos real', async ({ page }) => {
+    await page.goto('/sports');
+
+    await expect(page.getByText('Tenis Fullstack E2E')).toBeVisible({ timeout: 10000 });
+
+    page.on('dialog', (dialog) => dialog.accept());
+
+    await page.getByRole('button', { name: /Eliminar deporte/i }).first().click();
+
+    await expect(page.getByText('No se encontraron deportes.')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Tenis Fullstack E2E')).toBeHidden();
+  });
 });
