@@ -54,4 +54,15 @@ describe('ReturnEquipmentLoanUseCase', () => {
         expect(mockLoanRepo.update).toHaveBeenCalledOnce();
         expect(result.status).toBe('Returned');
     });
+
+    // test unitario 75 - debe lanzar LoanNotFoundError si el préstamo no existe
+    it('debe lanzar LoanNotFoundError si el préstamo no existe', async () => {
+        vi.mocked(mockLoanRepo.findById).mockResolvedValueOnce(null);
+
+        await expect(
+        useCase.execute('id-inexistente', { status: 'Returned' }),
+        ).rejects.toThrow(LoanNotFoundError);
+
+        expect(mockLoanRepo.update).not.toHaveBeenCalled();
+    });
 });
