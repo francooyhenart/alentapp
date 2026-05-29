@@ -119,9 +119,9 @@ vi.mock('../infrastructure/PrismaSportRepository.js', () => {
                     : null;
             }
             async findById(id: string) {
-                return id === 'sport-id-2'
+                return id === 'sport-id-2' || id === '11111111-1111-4111-8111-111111111111'
                     ? {
-                        id: 'sport-id-2',
+                        id,
                         name: 'Tenis',
                         description: 'Actividad de tenis',
                         max_capacity: 12,
@@ -486,6 +486,43 @@ describe('Sport API Integration Tests', () => {
             expect(response.statusCode).toBe(400);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('El cupo maximo debe ser mayor a cero');
+        });
+    });
+
+    describe('DELETE /api/v1/sports/:id', () => {
+        //test de integración 64 - DELETE: debe eliminar un deporte existente
+        it('debe eliminar un deporte existente', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/sports/11111111-1111-4111-8111-111111111111',
+            });
+
+            expect(response.statusCode).toBe(204);
+            expect(response.payload).toBe('');
+        });
+
+        //test de integración 65 - DELETE: debe retornar 400 si el id no tiene formato valido
+        it('debe retornar 400 si el id no tiene formato valido', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/sports/id-invalido',
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El formato del id del deporte no es valido');
+        });
+
+        //test de integración 66 - DELETE: debe retornar 404 si el deporte no existe
+        it('debe retornar 404 si el deporte no existe', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/sports/22222222-2222-4222-8222-222222222222',
+            });
+
+            expect(response.statusCode).toBe(404);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El deporte no existe');
         });
     });
 });

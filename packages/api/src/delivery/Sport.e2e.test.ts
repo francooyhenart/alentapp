@@ -216,4 +216,22 @@ describe('Sport API End-to-End Tests', () => {
         expect(dbSport?.description).toBe('Actividad actualizada desde test e2e');
     });
 
+    //test 67 - e2e DELETE: debe eliminar un deporte de la base de datos real
+    it('debe eliminar un deporte de la base de datos real', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/sports/${createdSportId}`,
+        });
+
+        expect(response.statusCode).toBe(204);
+        expect(response.payload).toBe('');
+
+        const dbSport = await prisma.sport.findUnique({
+            where: { id: createdSportId },
+        });
+
+        expect(dbSport).toBeNull();
+        createdSportId = '';
+    });
+
 });
