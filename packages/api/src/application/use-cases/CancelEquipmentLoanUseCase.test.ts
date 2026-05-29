@@ -55,4 +55,15 @@ describe('CancelEquipmentLoanUseCase', () => {
         expect(result.status).toBe('Canceled');
         expect(result.isActive).toBe(false);
     });
+
+    // test unitario 78 - debe lanzar LoanNotFoundError si el préstamo a cancelar no existe
+    it('debe lanzar LoanNotFoundError si el préstamo a cancelar no existe', async () => {
+        vi.mocked(mockLoanRepo.findById).mockResolvedValueOnce(null);
+
+        await expect(
+        useCase.execute('id-fantasma', { reason: 'Error de registro' }),
+        ).rejects.toThrow(LoanNotFoundError);
+
+        expect(mockLoanRepo.update).not.toHaveBeenCalled();
+    });
 });
