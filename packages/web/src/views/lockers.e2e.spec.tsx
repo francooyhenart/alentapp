@@ -301,7 +301,42 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
     expect(botonMantenimiento.hasAttribute('disabled')).toBe(true);
 
   }); 
+// Test 4: Valida la acción administrativa de bloquear un casillero libre enviándolo al estado de mantenimiento
+  it('4. Gestión de Mantenimiento: Debe permitir enviar un casillero Disponible a Mantenimiento', async () => {
+    (lockerService.updateStatus as any).mockResolvedValue({
+      id: '1', number: 101, location: 'Sector A', status: 'Maintenance', member_id: null
+    });
 
+    render(<MockLockersView />);
 
-};
+    await screen.findByText(/Casillero 101/i);
+    const botonMantenimiento = screen.getByTestId('mantenimiento-101');
+    
+    fireEvent.click(botonMantenimiento);
+
+    await waitFor(() => {
+      expect(lockerService.updateStatus).toHaveBeenCalledWith('1', 'Maintenance');
+      expect(screen.getByText(/Casillero 101 - Sector A \(Maintenance\)/i)).toBeDefined();
+    });
+  });
+
+  // Test 5: Valida la acción administrativa de dar el alta técnica a un casillero en reparación para habilitar futuras reservas
+  it('5. Gestión de Mantenimiento: Debe permitir rehabilitar un casillero en Mantenimiento a Disponible', async () => {
+    (lockerService.updateStatus as any).mockResolvedValue({
+      id: '4', number: 104, location: 'Sector D', status: 'Available', member_id: null
+    });
+
+    render(<MockLockersView />);
+
+    await screen.findByText(/Casillero 104/i);
+    const botonRehabilitar = screen.getByTestId('rehabilitar-104');
+    
+    fireEvent.click(botonRehabilitar);
+
+    await waitFor(() => {
+      expect(lockerService.updateStatus).toHaveBeenCalledWith('4', 'Available');
+      expect(screen.getByText(/Casillero 104 - Sector D \(Available\)/i)).toBeDefined();
+    });
+  });
+});
 
