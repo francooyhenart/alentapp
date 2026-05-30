@@ -91,4 +91,84 @@ const MockLockersView = () => {
     setLockers(lockers.map(l => l.id === id ? { ...l, status: nextStatus } : l));
 
   }; 
-};
+    return (
+
+    <div>
+
+      <h1>Panel de Casilleros</h1>
+
+      <div>
+
+        <input placeholder="Número" value={number} onChange={e => setNumber(e.target.value)} />
+
+        <input placeholder="Ubicación" value={location} onChange={e => setLocation(e.target.value)} />
+
+        <button onClick={handleCreate}>Crear</button>
+
+      </div>
+
+      <ul>
+
+        {lockers.map(l => (
+
+          <li key={l.id}>
+
+            <span>Casillero {l.number} - {l.location} ({l.status})</span>
+
+            <button disabled={l.status === 'Occupied' || l.status === 'Maintenance'} onClick={() => handleReserve(l.id)}>
+
+              Reservar
+
+            </button>
+
+            <button disabled={l.status === 'Available' || l.status === 'Maintenance'}>
+
+              Liberar
+
+            </button>
+
+            
+
+            {l.status === 'Available' && (
+
+              <button data-testid={`mantenimiento-${l.number}`} onClick={() => handleStatusChange(l.id, 'Maintenance')}>
+
+                🔧 Mantenimiento
+
+              </button>
+
+            )}
+
+            {l.status === 'Maintenance' && (
+
+              <button data-testid={`rehabilitar-${l.number}`} onClick={() => handleStatusChange(l.id, 'Available')}>
+
+                ✅ Habilitar
+
+              </button>
+
+            )}
+
+            {l.status === 'Occupied' && (
+
+              <button disabled data-testid={`mantenimiento-${l.number}`}>
+
+                🔧 Mantenimiento
+
+              </button>
+
+            )}
+
+          </li>
+
+        ))}
+
+      </ul>
+
+    </div>
+
+  );
+
+}; 
+
+
