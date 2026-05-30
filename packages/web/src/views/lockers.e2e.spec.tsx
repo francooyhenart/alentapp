@@ -171,4 +171,79 @@ const MockLockersView = () => {
 
 }; 
 
+describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () => {
+
+  
+
+  // Datos iniciales de prueba para popular el componente en cada escenario
+
+  const mockLockers = [
+
+    { id: '1', number: 101, location: 'Sector A', status: 'Available', member_id: null },
+
+    { id: '2', number: 102, location: 'Sector B', status: 'Occupied', member_id: 'socio-123' },
+
+    { id: '4', number: 104, location: 'Sector D', status: 'Maintenance', member_id: null },
+
+  ];
+
+
+
+  // Configuración previa: Limpia el árbol de componentes y resetea el historial de los mocks antes de cada test
+
+  beforeEach(() => {
+
+    cleanup();
+
+    vi.clearAllMocks();
+
+    (lockerService.getAll as any).mockResolvedValue(mockLockers);
+
+  });
+
+
+
+  // Test 1: Simula el proceso completo de llenado y envío del formulario para agregar un nuevo casillero
+
+  it('1. Flujo de Alta: Debe completar el formulario, enviar y visualizar el nuevo casillero en la grilla', async () => {
+
+    (lockerService.createLocker as any).mockResolvedValue({
+
+      id: '3', number: 103, location: 'Sector C', status: 'Available', member_id: null
+
+    });
+
+
+
+    render(<MockLockersView />);
+
+
+
+    const inputNumero = await screen.findByPlaceholderText(/número/i);
+
+    const inputUbicacion = screen.getByPlaceholderText(/ubicación/i);
+
+    const botonCrear = screen.getByRole('button', { name: /crear/i });
+
+
+
+    fireEvent.change(inputNumero, { target: { value: '103' } });
+
+    fireEvent.change(inputUbicacion, { target: { value: 'Sector C' } });
+
+    fireEvent.click(botonCrear);
+
+
+
+    await waitFor(() => {
+
+      expect(lockerService.createLocker).toHaveBeenCalledWith({ number: 103, location: 'Sector C' });
+
+      expect(screen.getByText(/Casillero 103/i)).toBeDefined();
+
+    });
+
+  }); 
+
+};
 
