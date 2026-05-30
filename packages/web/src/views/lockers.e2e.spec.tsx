@@ -284,5 +284,24 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
 
   }); 
 
+    // Test 3: Regla de negocio de UX que valida que no se pueda enviar a reparación un casillero que posee un socio activo
+
+  it('3. Reglas de Interfaz: Un casillero Ocupado debe bloquear el botón de mantenimiento', async () => {
+
+    render(<MockLockersView />);
+
+
+
+    await screen.findByText(/Casillero 102/i);
+
+
+
+    const botonMantenimiento = screen.getByTestId('mantenimiento-102');
+
+    expect(botonMantenimiento.hasAttribute('disabled')).toBe(true);
+
+  }); 
+
+
 };
 
