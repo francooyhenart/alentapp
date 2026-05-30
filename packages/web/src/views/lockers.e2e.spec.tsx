@@ -203,7 +203,7 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
 
 
 
-  // Test 1: Simula el proceso completo de llenado y envío del formulario para agregar un nuevo casillero
+  // Test 19: Simula el proceso completo de llenado y envío del formulario para agregar un nuevo casillero
 
   it('1. Flujo de Alta: Debe completar el formulario, enviar y visualizar el nuevo casillero en la grilla', async () => {
 
@@ -246,7 +246,7 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
   }); 
 
 
-  // Test 2: Simula el flujo en el que un usuario reserva un casillero disponible y reacciona de forma reactiva
+  // Test 20: Simula el flujo en el que un usuario reserva un casillero disponible y reacciona de forma reactiva
 
   it('2. Flujo de Reserva: Seleccionar socio, presionar reservar y verificar que la tarjeta cambie a Ocupado', async () => {
 
@@ -284,7 +284,7 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
 
   }); 
 
-    // Test 3: Regla de negocio de UX que valida que no se pueda enviar a reparación un casillero que posee un socio activo
+    // Test 21: Regla de negocio de UX que valida que no se pueda enviar a reparación un casillero que posee un socio activo
 
   it('3. Reglas de Interfaz: Un casillero Ocupado debe bloquear el botón de mantenimiento', async () => {
 
@@ -301,7 +301,7 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
     expect(botonMantenimiento.hasAttribute('disabled')).toBe(true);
 
   }); 
-// Test 4: Valida la acción administrativa de bloquear un casillero libre enviándolo al estado de mantenimiento
+// Test 90: Valida la acción administrativa de bloquear un casillero libre enviándolo al estado de mantenimiento
   it('4. Gestión de Mantenimiento: Debe permitir enviar un casillero Disponible a Mantenimiento', async () => {
     (lockerService.updateStatus as any).mockResolvedValue({
       id: '1', number: 101, location: 'Sector A', status: 'Maintenance', member_id: null
@@ -320,7 +320,7 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
     });
   });
 
-  // Test 5: Valida la acción administrativa de dar el alta técnica a un casillero en reparación para habilitar futuras reservas
+  // Test 91: Valida la acción administrativa de dar el alta técnica a un casillero en reparación para habilitar futuras reservas
   it('5. Gestión de Mantenimiento: Debe permitir rehabilitar un casillero en Mantenimiento a Disponible', async () => {
     (lockerService.updateStatus as any).mockResolvedValue({
       id: '4', number: 104, location: 'Sector D', status: 'Available', member_id: null
