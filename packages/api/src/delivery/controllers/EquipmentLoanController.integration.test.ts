@@ -1,117 +1,54 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../app.js';
+import { EquipmentLoan } from '../../domain/entities/EquipmentLoan.js';
+import { LoanStatusVO } from '../../domain/value-objects/LoanStatus.js';
 
-// ─── Mock del DependencyContainer ────────────────────────────────────────────
-// El container instancia el repositorio de Prisma (DB real).
-// Lo reemplazamos con un controller completamente controlado.
-vi.mock('../../infrastructure/di/container.js', () => {
-    const loans: Record<string, any> = {};
+// ─── Repositorio en memoria ──────────────────────────────────────────────────
+// Mockeamos PrismaEquipmentLoanRepository con una implementación en memoria.
+// Así el controller real + use cases reales se ejecutan, sin tocar la DB.
 
-    const mockController = {
-        list: async (_request: any, reply: any) => {
-            return reply.status(200).send(Object.values(loans));
-        },
-        create: async (request: any, reply: any) => {
-            const { itemName, memberDni } = request.body;
+const store: Map<string, EquipmentLoan> = new Map();
 
-            // Simular restricción Cadete
-            if (memberDni === '99887766') {
-                return reply.status(403).send({
-                    error: 'Forbidden',
-                    message: 'Los socios de categoría Cadet no están autorizados para solicitar préstamos de equipamiento',
-                    code: 'CATEGORY_RESTRICTION',
-                });
-            }
-            // Simular socio no encontrado
-            if (memberDni === '00000000') {
-                return reply.status(404).send({
-                    error: 'Not Found',
-                    message: `El socio con ID ${memberDni} no existe`,
-                    code: 'MEMBER_NOT_FOUND',
-                });
-            }
-
-            const newLoan = {
-                id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-                itemName,
-                status: 'Loaned',
-                isActive: true,
-                loanDate: new Date().toISOString(),
-                returnDate: null,
-                canceledDate: null,
-                memberId: 'member-uuid-test',
-                notes: request.body.notes ?? undefined,
-            };
-            loans[newLoan.id] = newLoan;
-            return reply.status(201).send(newLoan);
-        },
-        returnLoan: async (request: any, reply: any) => {
-            const { id } = request.params;
-            const loan = loans[id];
-
-            if (!loan) {
-                return reply.status(404).send({
-                    error: 'Not Found',
-                    message: `El préstamo con ID ${id} no existe`,
-                    code: 'LOAN_NOT_FOUND',
-                });
-            }
-
-            loan.status = request.body.status ?? 'Returned';
-            loan.returnDate = new Date().toISOString();
-            return reply.status(200).send(loan);
-        },
-        cancelLoan: async (request: any, reply: any) => {
-            const { id } = request.params;
-            const loan = loans[id];
-
-            if (!loan) {
-                return reply.status(404).send({
-                    error: 'Not Found',
-                    message: `El préstamo con ID ${id} no existe`,
-                    code: 'LOAN_NOT_FOUND',
-                });
-            }
-            if (loan.status === 'Canceled') {
-                return reply.status(409).send({
-                    error: 'Conflict',
-                    message: 'Este préstamo ya fue cancelado anteriormente',
-                    code: 'ALREADY_CANCELED',
-                });
-            }
-
-            loan.status = 'Canceled';
-            loan.isActive = false;
-            loan.canceledDate = new Date().toISOString();
-            return reply.status(200).send(loan);
-        },
-    };
-
-    class MockDependencyContainer {
-        static getInstance() {
-            return new MockDependencyContainer();
+vi.mock('../../infrastructure/repositories/PrismaEquipmentLoanRepository.js', () => ({
+    PrismaEquipmentLoanRepository: class {
+        async create(loan: EquipmentLoan): Promise<EquipmentLoan> {
+            store.set(loan.id, loan);
+            return loan;
         }
-        getEquipmentLoanController() {
-            return mockController;
+        async findById(id: string): Promise<EquipmentLoan | null> {
+            return store.get(id) ?? null;
         }
-    }
+        async update(loan: EquipmentLoan): Promise<EquipmentLoan> {
+            store.set(loan.id, loan);
+            return loan;
+        }
+        async findAll(): Promise<EquipmentLoan[]> {
+            return Array.from(store.values()).filter(l => l.isActive);
+        }
+    },
+}));
 
-    return { DependencyContainer: MockDependencyContainer };
-});
+// ─── Mock de PostgresMemberRepository ───────────────────────────────────────
+// Simulamos dos socios: uno Pleno (DNI 12345678) y uno Cadete (DNI 99887766).
 
-// ─── Mocks de otros repositorios que buildApp() instancia ────────────────────
 vi.mock('../../infrastructure/PostgresMemberRepository.js', () => ({
     PostgresMemberRepository: class {
+        async findByDni(dni: string) {
+            if (dni === '12345678') return { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', category: 'Pleno', dni };
+            if (dni === '99887766') return { id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901', category: 'Cadete', dni };
+            return null;
+        }
         async findAll() { return []; }
         async findById() { return null; }
-        async findByDni() { return null; }
         async findByEmail() { return null; }
         async create(data: any) { return { id: 'member-id', ...data }; }
         async update(id: string, data: any) { return { id, ...data }; }
         async delete() { return; }
     },
 }));
+
+// ─── Mocks de repositorios que buildApp() instancia (no relacionados) ────────
 
 vi.mock('../../infrastructure/PrismaLockerRepository.js', () => ({
     PrismaLockerRepository: class {
@@ -149,6 +86,38 @@ vi.mock('../../infrastructure/PrismaSportRepository.js', () => ({
     },
 }));
 
+// ─── Mock del DependencyContainer ────────────────────────────────────────────
+// Lo mockeamos solo para evitar que intente conectarse a Prisma/DB real.
+// getEquipmentLoanController() instancia el controller real con los repos mockeados.
+
+vi.mock('../../infrastructure/di/container.js', async (importOriginal) => {
+    const { PrismaEquipmentLoanRepository } = await import('../../infrastructure/repositories/PrismaEquipmentLoanRepository.js');
+    const { PostgresMemberRepository } = await import('../../infrastructure/PostgresMemberRepository.js');
+    const { CreateEquipmentLoanUseCase } = await import('../../application/use-cases/CreateEquipmentLoanUseCase.js');
+    const { ReturnEquipmentLoanUseCase } = await import('../../application/use-cases/ReturnEquipmentLoanUseCase.js');
+    const { GetEquipmentLoansUseCase } = await import('../../application/use-cases/GetEquipmentLoansUseCase.js');
+    const { CancelEquipmentLoanUseCase } = await import('../../application/use-cases/CancelEquipmentLoanUseCase.js');
+    const { EquipmentLoanController } = await import('../../delivery/controllers/EquipmentLoanController.js');
+
+    class MockDependencyContainer {
+        static getInstance() {
+            return new MockDependencyContainer();
+        }
+        getEquipmentLoanController() {
+            const loanRepo = new PrismaEquipmentLoanRepository({} as any);
+            const memberRepo = new PostgresMemberRepository();
+            return new EquipmentLoanController(
+                new CreateEquipmentLoanUseCase(loanRepo, memberRepo),
+                new ReturnEquipmentLoanUseCase(loanRepo),
+                new GetEquipmentLoansUseCase(loanRepo),
+                new CancelEquipmentLoanUseCase(loanRepo),
+            );
+        }
+    }
+
+    return { DependencyContainer: MockDependencyContainer };
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // SUITE
 // ════════════════════════════════════════════════════════════════════════════
@@ -157,6 +126,7 @@ describe('EquipmentLoan API Integration Tests', () => {
     let app: FastifyInstance;
 
     beforeAll(async () => {
+        store.clear();
         app = buildApp();
         await app.ready();
     });
@@ -241,7 +211,6 @@ describe('EquipmentLoan API Integration Tests', () => {
 
         // test de integración 84 - PATCH return: debe retornar 200 y el préstamo con estado Returned
         it('debe retornar 200 y el préstamo con estado Returned', async () => {
-            // Primero creamos un préstamo para obtener un ID real del mock
             const created = await app.inject({
                 method: 'POST',
                 url: '/api/v1/equipment-loans',
@@ -281,7 +250,6 @@ describe('EquipmentLoan API Integration Tests', () => {
 
         // test de integración 86 - PATCH cancel: debe retornar 200 con isActive en false y estado Canceled
         it('debe retornar 200 con isActive en false y estado Canceled', async () => {
-            // Creamos un préstamo nuevo para cancelarlo
             const created = await app.inject({
                 method: 'POST',
                 url: '/api/v1/equipment-loans',
