@@ -245,5 +245,44 @@ describe('🌐 Tests End-to-End (E2E) — Panel de Interfaz de Casilleros', () =
 
   }); 
 
+
+  // Test 2: Simula el flujo en el que un usuario reserva un casillero disponible y reacciona de forma reactiva
+
+  it('2. Flujo de Reserva: Seleccionar socio, presionar reservar y verificar que la tarjeta cambie a Ocupado', async () => {
+
+    (lockerService.reserveLocker as any).mockResolvedValue({
+
+      id: '1', number: 101, location: 'Sector A', status: 'Occupied', member_id: 'socio-777'
+
+    });
+
+
+
+    render(<MockLockersView />);
+
+
+
+    const tarjetaDisponible = await screen.findByText(/Casillero 101/i);
+
+    expect(tarjetaDisponible).toBeDefined();
+
+
+
+    const botonReservar = screen.getAllByRole('button', { name: /reservar/i })[0];
+
+    fireEvent.click(botonReservar);
+
+
+
+    await waitFor(() => {
+
+      expect(lockerService.reserveLocker).toHaveBeenCalled();
+
+      expect(screen.getByText(/Casillero 101 - Sector A \(Occupied\)/i)).toBeDefined();
+
+    });
+
+  }); 
+
 };
 
