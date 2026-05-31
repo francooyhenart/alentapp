@@ -87,6 +87,31 @@ export class PostgresMedicalCertificateRepository implements MedicalCertificateR
         return this.mapToDTO(updated);
     }
 
+    async validateAndInvalidateOthers(id: string, memberId: string): Promise<MedicalCertificateDTO> {
+        const updatedCertificate = await prisma.$transaction(async (tx) => {
+            // 1. Invalida los otros certificados validados del mismo socio
+            await tx.medicalCertificate.updateMany({
+                where: {
+                    memberId: memberId,
+                    isValidated: true,
+                    deletedAt: null,
+                    id: { not: id },
+                },
+                data: { isValidated: false },
+            });
+
+            // 2. Valida el certificado actual
+            const updated = await tx.medicalCertificate.update({
+                where: { id },
+                data: { isValidated: true },
+            });
+
+            return updated;
+        });
+
+        return this.mapToDTO(updatedCertificate);
+    }
+
     async softDelete(id: string): Promise<void> {
         await prisma.medicalCertificate.update({
             where: { id },

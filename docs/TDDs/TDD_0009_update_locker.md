@@ -169,6 +169,33 @@ export interface LockerRepository {
 ```
 ### 3.2. Lógica del Caso de Uso
 
+#### CU-01: Actualización de Estado (Gestión de Mantenimiento)
+
+**Descripción:** Permite a un administrador modificar el estado operativo de un casillero entre `Available` y `Maintenance`.  
+**Actor Principal:** Administrador
+
+**Precondiciones:**
+1. El administrador debe estar autenticado con rol de gestión de infraestructura.
+2. El casillero debe existir en la base de datos.
+
+**Flujo Principal (Escenario de Éxito):**
+1. El administrador ingresa al panel de "Gestión de Lockers".
+2. El sistema muestra el inventario completo con los estados actuales.
+3. El administrador selecciona un casillero y elige "Cambiar Estado".
+4. El administrador selecciona el nuevo estado (`Maintenance` o `Available`) y confirma.
+5. El sistema envía `PATCH /api/v1/lockers/{id}/status` con el nuevo estado en el body.
+6. El sistema valida permisos y verifica que el casillero no esté en `Occupied`.
+7. El sistema actualiza el `status` en la base de datos.
+8. El sistema confirma la operación y refresca la lista de casilleros.
+
+**Flujos Alternativos (Escenarios de Fallo):**
+- **A1. Casillero Ocupado:** En el paso 6, el casillero tiene estado `Occupied`. El sistema bloquea la actualización y muestra: *"No se puede pasar a mantenimiento un casillero que actualmente está siendo utilizado por un socio. Solicite su liberación primero."*
+- **A2. Error de Permisos:** En el paso 6, el usuario no tiene rol de administrador. El sistema rechaza la solicitud y muestra: *"Acceso denegado: no cuenta con los permisos necesarios para realizar esta acción."*
+- **A3. Falla de Infraestructura:** En el paso 7, falla la conexión con la base de datos. El sistema aplica un `rollback` y mantiene el estado original del casillero.
+
+**Postcondiciones:**
+- Si el casillero pasó a `Maintenance`, se oculta de la vista de reservas de los socios.
+- Si el casillero volvió a `Available`, queda inmediatamente habilitado para nuevas reservas.
 **Caso de Uso:** `Alta de Reserva` (ReserveLocker)
 
 **Flujo paso a paso:**
