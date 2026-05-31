@@ -42,7 +42,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     app = buildApp();
   });
 
-  it('1. POST /api/v1/lockers — Debe crear un casillero y responder 201', async () => {
+  it('13. POST /api/v1/lockers — Debe crear un casillero y responder 201', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/lockers',
@@ -51,7 +51,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     expect(response.statusCode).toBe(201);
   });
 
-  it('2. POST /api/v1/lockers — Debe responder 400 si faltan campos obligatorios', async () => {
+  it('14. POST /api/v1/lockers — Debe responder 400 si faltan campos obligatorios', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/lockers',
@@ -60,7 +60,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('3. GET /api/v1/lockers — Debe retornar el array de casilleros con status 200', async () => {
+  it('15. GET /api/v1/lockers — Debe retornar el array de casilleros con status 200', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/lockers'
@@ -70,7 +70,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
-  it('4. PATCH /api/v1/lockers/:id/reserve — Debe responder exitosamente al procesar la ruta', async () => {
+  it('16. PATCH /api/v1/lockers/:id/reserve — Debe responder exitosamente al procesar la ruta', async () => {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/lockers/f0a71d11-a0cc-40ca-9840-f47303aaf79f/reserve',
@@ -79,7 +79,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     expect(response.statusCode).not.toBe(404);
   });
 
-  it('5. PATCH /api/v1/lockers/:id/release — Debe rebotar con 401 si falta la cabecera x-user-id', async () => {
+  it('17. PATCH /api/v1/lockers/:id/release — Debe rebotar con 401 si falta la cabecera x-user-id', async () => {
     const response = await app.inject({
       method: 'PATCH',
       url: '/api/v1/lockers/f0a71d11-a0cc-40ca-9840-f47303aaf79f/release',
@@ -88,7 +88,7 @@ describe('🔗 Tests de Integración HTTP — Endpoints Lockers', () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it('6. DELETE /api/v1/lockers/:id — Debe retornar 204 al eliminar un casillero', async () => {
+  it('18. DELETE /api/v1/lockers/:id — Debe retornar 204 al eliminar un casillero', async () => {
     const response = await app.inject({
       method: 'DELETE',
       url: '/api/v1/lockers/f0a71d11-a0cc-40ca-9840-f47303aaf79f'
