@@ -8,15 +8,15 @@ export class UpdateMedicalCertificateUseCase {
     ) {}
 
     async execute(id: string, data: UpdateMedicalCertificateRequest): Promise<MedicalCertificateDTO> {
-        // 1. Verificar que el certificado existe
         const existing = await this.medicalCertificateRepository.findById(id);
         if (!existing) {
             throw new Error('El certificado médico no existe');
         }
 
-        // 2. Modificar el estado de validación
-        const updated = await this.medicalCertificateRepository.updateValidationStatus(id, data.isValidated);
+        if (data.isValidated === true) {
+            return await this.medicalCertificateRepository.validateAndInvalidateOthers(id, existing.memberId);
+        }
 
-        return updated;
+        return await this.medicalCertificateRepository.updateValidationStatus(id, data.isValidated);
     }
 }
