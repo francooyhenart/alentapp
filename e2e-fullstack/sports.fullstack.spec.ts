@@ -10,6 +10,7 @@ test.describe('Sports Full-Stack E2E', () => {
   // test 36 - e2e full-stack POST: debe crear un deporte real y mostrarlo en la tabla
   test('debe crear un deporte real y mostrarlo en la tabla', async ({ page }) => {
     await page.goto('/sports');
+    await expect(page.getByText('Cargando deportes...')).toBeHidden({ timeout: 10000 });
 
     await page.locator('button:has-text("Agregar Deporte")').click();
     await expect(page.getByText('Agregar Nuevo Deporte')).toBeVisible();
@@ -21,8 +22,8 @@ test.describe('Sports Full-Stack E2E', () => {
 
     await page.getByRole('button', { name: 'Crear Deporte' }).click();
 
-    await expect(page.getByRole('button', { name: 'Crear Deporte' })).toBeHidden();
     await expect(page.getByText('Tenis Fullstack E2E')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: 'Crear Deporte' })).toBeHidden();
     await expect(page.getByText('Actividad creada desde Playwright fullstack')).toBeVisible();
     await expect(page.getByText('12')).toBeVisible();
     await expect(page.getByText('$1500')).toBeVisible();
