@@ -4,8 +4,9 @@
  * Limpia la base de datos de test para que no queden datos creados por la suite.
  */
 import pg from 'pg';
+import { getE2eDatabaseUrl } from './e2e-env';
 
-const DB_URL = 'postgresql://admin:password123@localhost:5433/alentapp_test_db';
+const DB_URL = getE2eDatabaseUrl();
 
 async function cleanDatabase(): Promise<void> {
     const client = new pg.Client({ connectionString: DB_URL });
