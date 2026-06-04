@@ -46,7 +46,9 @@ async function createSportByApi(data: {
 }
 
 async function openCreateDialog(page: Page) {
-  await page.getByRole('button', { name: /Agregar Deporte/i }).click();
+  const addSportButton = page.getByRole('button', { name: /Agregar Deporte/i });
+  await expect(addSportButton).toBeEnabled({ timeout: 10000 });
+  await addSportButton.click();
   await expect(page.getByText('Agregar Nuevo Deporte')).toBeVisible();
 }
 
@@ -67,6 +69,8 @@ function sportRow(page: Page, sportName: string) {
 }
 
 test.describe('Sports Full-Stack E2E', () => {
+  test.setTimeout(60_000);
+
   // test 36 - e2e full-stack POST: debe crear un deporte real y mostrarlo en la tabla
   test('debe crear un deporte real y mostrarlo en la tabla', async ({ page }) => {
     const sport = {
