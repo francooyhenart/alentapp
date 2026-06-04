@@ -20,6 +20,7 @@ export default defineConfig({
   ],
 
   globalSetup: './e2e-fullstack/global-setup.ts',
+  globalTeardown: './e2e-fullstack/global-teardown.ts',
 
   use: {
     baseURL: 'http://localhost:5174',
