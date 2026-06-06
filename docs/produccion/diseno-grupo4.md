@@ -340,3 +340,138 @@ Las métricas RED se aplican sobre la API Fastify para medir cómo se comporta e
 Esto evita generar demasiadas series de métricas diferentes en Prometheus.
 
 ---
+
+### b) OpenTelemetry SDK
+
+La integración debe ubicarse en la capa de infraestructura en:
+
+```text
+packages/api/src/infrastructure/telemetry.ts
+```
+
+Ese archivo centraliza la configuración del SDK, el exporter de Prometheus y la creación de métricas personalizadas RED.
+
+#### Dependencias necesarias
+
+```bash
+npm -w packages/api install \
+  @opentelemetry/sdk-node \
+  @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-prometheus \
+  @opentelemetry/instrumentation-http \
+  @opentelemetry/instrumentation-fastify \
+  @opentelemetry/api
+```
+
+| Dependencia | Propósito |
+|---|---|
+| `@opentelemetry/sdk-node` | Inicializar el SDK para Node.js |
+| `@opentelemetry/exporter-prometheus` | Exponer métricas en formato compatible con Prometheus |
+| `@opentelemetry/auto-instrumentations-node` | Activar auto-instrumentaciones comunes |
+| `@opentelemetry/instrumentation-http` | Instrumentar tráfico HTTP |
+| `@opentelemetry/instrumentation-fastify` | Instrumentar Fastify |
+| `@opentelemetry/api` | Usar la API pública de métricas (`metrics.getMeter`) |
+
+#### Configuración conceptual del SDK
+
+```ts
+// Estructura conceptual de la configuración OpenTelemetry
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { metrics } from '@opentelemetry/api';
+
+// Configuración a implementar:
+// 1. PrometheusExporter en puerto 9464 (o el que elijan)
+// 2. Auto-instrumentaciones para HTTP y Fastify
+// 3. Métricas personalizadas RED definidas arriba
+```
+
+El exporter expone las métricas en:
+
+```text
+Puerto API:      3000
+Puerto métricas: 9464
+Endpoint:        http://localhost:9464/metrics
+```
+
+En Docker Compose, Prometheus accede usando el nombre del servicio: `api:9464/metrics`.
+
+#### Métricas personalizadas — instrumento OpenTelemetry
+
+| Métrica RED | Instrumento | Nombre |
+|---|---|---|
+| Rate | Counter | `http_requests_total` |
+| Errors | Counter | `http_requests_errors_total` |
+| Duration | Histogram | `http_request_duration_milliseconds` |
+| Requests concurrentes | UpDownCounter | `http_requests_active` |
+| Memoria del proceso | ObservableGauge | `process_memory_usage_bytes` |
+
+- `http_requests_active` se implementa con `createUpDownCounter` porque sube en `+1` al entrar una request y baja en `-1` cuando termina.
+- `process_memory_usage_bytes` se implementa con `createObservableGauge` porque la memoria se observa en cada scrape y no se modifica manualmente desde los handlers.
+
+#### Hooks globales de Fastify
+
+Las métricas RED se registran a nivel de infraestructura usando hooks globales de Fastify. No se debe envolver manualmente cada handler con `try/catch/finally`, para no mezclar observabilidad con lógica de negocio.
+
+```ts
+server.addHook('onRequest', async (request) => {
+  request.startTime = Date.now();
+  activeRequests.add(1, { method: request.method, route: request.routeOptions?.url ?? request.url });
+});
+
+server.addHook('onResponse', async (request, reply) => {
+  const method = request.method;
+  const route = request.routeOptions?.url ?? request.url;
+  const status = String(reply.statusCode);
+  const duration = Date.now() - request.startTime;
+
+  requestCounter.add(1, { method, route, status });
+
+  if (reply.statusCode >= 400) {
+    errorCounter.add(1, { method, route, status });
+  }
+
+  requestDuration.record(duration, { method, route });
+  activeRequests.add(-1, { method, route });
+});
+```
+
+#### Inicialización en la API
+
+OpenTelemetry debe inicializarse antes de que Fastify y las rutas se registren. En `packages/api/src/app.ts`, la importación debe estar al inicio del archivo, antes de importar Fastify:
+
+```ts
+import './infrastructure/telemetry.js';
+import Fastify from 'fastify';
+```
+
+#### Labels por métrica
+
+| Métrica | Labels |
+|---|---|
+| `http_requests_total` | `method`, `route`, `status` |
+| `http_requests_errors_total` | `method`, `route`, `status` |
+| `http_request_duration_milliseconds` | `method`, `route` |
+| `http_requests_active` | `method`, `route` |
+| `process_memory_usage_bytes` | Sin labels |
+
+#### Verificación esperada
+
+Una vez implementado el SDK, debe poder validarse:
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+Después de generar tráfico contra la API, deben aparecer las métricas:
+
+```text
+http_requests_total
+http_requests_errors_total
+http_request_duration_milliseconds_bucket / _count / _sum
+http_requests_active
+process_memory_usage_bytes
+```
+
+---
