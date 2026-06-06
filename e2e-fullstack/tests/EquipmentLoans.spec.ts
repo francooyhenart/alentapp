@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import pg from 'pg';
 
 /**
  * Tests E2E Full-Stack para la vista de Préstamos de Equipamiento.
@@ -9,6 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
  */
 
 const API_URL = 'http://localhost:3001/api/v1';
+const DB_URL = 'postgresql://admin:password123@localhost:5433/alentapp_test_db';
 
 function uniqueItemName(prefix: string) {
     return `${prefix} ${Date.now()} ${Math.random().toString(36).slice(2, 8)}`;
@@ -17,6 +19,16 @@ function uniqueItemName(prefix: string) {
 async function waitForLoansPage(page: Page) {
     await page.goto('/equipment-loans');
     await expect(page.getByText('Cargando préstamos...')).toBeHidden({ timeout: 30000 });
+}
+
+async function cleanLoansTable() {
+    const client = new pg.Client({ connectionString: DB_URL });
+    await client.connect();
+    try {
+        await client.query('TRUNCATE TABLE "equipment_loans" RESTART IDENTITY CASCADE');
+    } finally {
+        await client.end();
+    }
 }
 
 async function createLoanByApi(data: { itemName: string; memberDni: string; notes?: string }) {
@@ -39,6 +51,10 @@ function loanRow(page: Page, itemName: string) {
 
 test.describe('EquipmentLoans Full-Stack E2E', () => {
     test.setTimeout(60_000);
+
+    test.beforeEach(async () => {
+        await cleanLoansTable();
+    });
 
     // test e2e 87 - debe mostrar el estado vacío cuando no hay préstamos en la DB
     test('debe mostrar el estado vacío cuando no hay préstamos en la DB', async ({ page }) => {
