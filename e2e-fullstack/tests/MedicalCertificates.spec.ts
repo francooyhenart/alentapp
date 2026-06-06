@@ -135,3 +135,23 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
         // ASSERT: el estado debe cambiar a "Validado"
         await expect(certificateRow(page, doctorLicense)).toContainText('Validado', { timeout: 10000 });
     });
+
+    // test e2e 112 - debe eliminar un certificado y desaparecer de la tabla
+    test('debe eliminar un certificado y desaparecer de la tabla', async ({ page }) => {
+        const doctorLicense = uniqueDoctorLicense('MN-DELETE');
+
+        // SETUP: creamos el certificado por API
+        await createCertificateByApi({ doctorLicense });
+
+        await waitForCertificatesPage(page);
+
+        const row = certificateRow(page, doctorLicense);
+        await expect(row).toBeVisible({ timeout: 10000 });
+
+        // ACT: aceptamos la confirmación y hacemos clic en eliminar
+        page.on('dialog', (dialog) => dialog.accept());
+        await row.getByRole('button', { name: /Eliminar certificado/i }).click();
+
+        // ASSERT: la fila del certificado debe desaparecer
+        await expect(certificateRow(page, doctorLicense)).toBeHidden({ timeout: 10000 });
+    });
