@@ -13,9 +13,10 @@
  */
 import type { FullConfig } from '@playwright/test';
 import pg from 'pg';
+import { getE2eDatabaseUrl } from './e2e-env';
 
 const API_URL = 'http://localhost:3001';
-const DB_URL = 'postgresql://admin:password123@localhost:5433/alentapp_test_db';
+const DB_URL = getE2eDatabaseUrl();
 const MAX_WAIT_MS = 60_000;
 const POLL_INTERVAL_MS = 2_000;
 
