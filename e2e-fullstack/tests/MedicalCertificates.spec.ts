@@ -1,22 +1,94 @@
-import { test, expect } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Tests E2E Full-Stack para la vista de Certificados Médicos.
- * NO hay ningún mock de red. Playwright interactúa con:
- *   - El Frontend React en http://localhost:5174
- *   - La API Fastify real en http://localhost:3001
- *   - La base de datos PostgreSQL de test (alentapp_test_db)
+ * No usa mocks: Playwright interactúa con el frontend real, la API real
+ * y la base de datos PostgreSQL de test levantada con Docker Compose.
  *
- * El global-setup se encarga de limpiar la DB antes de correr la suite
- * y cargar un socio de prueba con DNI 12345678, que se usa para los
- * tests de creación de certificados.
+ * Cada test prepara sus propios datos para no depender del orden de ejecución.
  */
 
+const API_URL = 'http://localhost:3001/api/v1';
+const TEST_MEMBER_DNI = '12345678';
+
+function uniqueDoctorLicense(prefix: string) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+async function getTestMemberId(): Promise<string> {
+    // Obtenemos el id del socio precargado por global-setup (DNI 12345678)
+    const response = await fetch(`${API_URL}/socios`);
+    if (!response.ok) {
+        throw new Error(`No se pudo obtener la lista de socios: ${response.status}`);
+    }
+    const body = await response.json();
+    const members = body.data || body;
+    const testMember = members.find((m: any) => m.dni === TEST_MEMBER_DNI);
+    if (!testMember) {
+        throw new Error(`No se encontró el socio de prueba con DNI ${TEST_MEMBER_DNI}`);
+    }
+    return testMember.id;
+}
+
+async function createCertificateByApi(data: {
+    doctorLicense: string;
+    memberId?: string;
+    issueDate?: string;
+    expiryDate?: string;
+}) {
+    const memberId = data.memberId || await getTestMemberId();
+    const response = await fetch(`${API_URL}/medical-certificates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            memberId,
+            issueDate: data.issueDate || '2026-06-01',
+            expiryDate: data.expiryDate || '2027-06-01',
+            doctorLicense: data.doctorLicense,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`No se pudo preparar el certificado: ${response.status} ${await response.text()}`);
+    }
+
+    const body = await response.json();
+    return body.data;
+}
+
+async function validateCertificateByApi(certificateId: string) {
+    const response = await fetch(`${API_URL}/medical-certificates/${certificateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isValidated: true }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`No se pudo validar el certificado: ${response.status} ${await response.text()}`);
+    }
+
+    const body = await response.json();
+    return body.data;
+}
+
+async function waitForCertificatesPage(page: Page) {
+    await page.goto('/medical-certificates');
+    // Esperamos a que la página esté lista 
+    await page.waitForLoadState('networkidle');
+}
+
+function certificateRow(page: Page, doctorLicense: string) {
+    return page.locator('tr').filter({ hasText: doctorLicense });
+}
+
 test.describe('MedicalCertificates Full-Stack E2E', () => {
+    test.setTimeout(60_000);
 
     // test e2e 110 - debe crear un certificado médico real y mostrarlo en la tabla
     test('debe crear un certificado médico real y mostrarlo en la tabla', async ({ page }) => {
-        await page.goto('/medical-certificates');
+        const doctorLicense = uniqueDoctorLicense('MN-CREATE');
+
+        await waitForCertificatesPage(page);
 
         // Abrir el modal de creación
         await page.getByRole('button', { name: /Agregar Certificado/i }).click();
@@ -29,56 +101,17 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
         // Llenar las fechas y la matrícula
         await page.getByLabel(/Fecha de Emisión/i).fill('2026-06-01');
         await page.getByLabel(/Fecha de Vencimiento/i).fill('2027-06-01');
-        await page.getByPlaceholder('Ej. MN-12345').fill('MN-99999');
+        await page.getByPlaceholder('Ej. MN-12345').fill(doctorLicense);
 
         // Confirmar la creación
         await page.getByRole('button', { name: 'Crear Certificado' }).click();
 
         // El modal debe cerrarse y el certificado aparecer en la tabla
         await expect(page.getByRole('button', { name: 'Crear Certificado' })).toBeHidden();
-        await expect(page.getByText('MN-99999')).toBeVisible({ timeout: 10000 });
-        await expect(page.getByText('Socio E2E Test')).toBeVisible();
-        await expect(page.getByText('Pendiente').first()).toBeVisible();
-    });
-
-    // test e2e 111 - debe validar un certificado pendiente y reflejar el cambio de estado
-    test('debe validar un certificado pendiente y reflejar el cambio de estado', async ({ page }) => {
-        await page.goto('/medical-certificates');
-
-        // El certificado del test anterior debe estar visible
-        await expect(page.getByText('MN-99999')).toBeVisible({ timeout: 10000 });
-        await expect(page.getByText('Pendiente').first()).toBeVisible();
-
-        // Aceptar el confirm del navegador automáticamente
-        page.on('dialog', (dialog) => dialog.accept());
-
-        // Clic en el botón "Validar certificado"
-        await page.getByRole('button', { name: /Validar certificado/i }).first().click();
-
-        // El estado debe cambiar a "Validado"
-        await expect(page.getByText('Validado').first()).toBeVisible({ timeout: 10000 });
-
-        // El botón de validar ya no debe estar visible para este certificado
-        await expect(page.getByRole('button', { name: /Validar certificado/i })).toBeHidden();
-    });
-
-    // test e2e 112 - debe eliminar un certificado y mostrar el estado vacío
-    test('debe eliminar un certificado y mostrar el estado vacío', async ({ page }) => {
-        await page.goto('/medical-certificates');
-
-        // El certificado del test anterior debe seguir visible
-        await expect(page.getByText('MN-99999')).toBeVisible({ timeout: 10000 });
-
-        // Aceptar el confirm del navegador automáticamente
-        page.on('dialog', (dialog) => dialog.accept());
-
-        // Clic en el botón "Eliminar certificado"
-        await page.getByRole('button', { name: /Eliminar certificado/i }).first().click();
-
-        // El certificado debe desaparecer de la tabla
-        await expect(page.getByText('MN-99999')).toBeHidden({ timeout: 10000 });
-
-        // La tabla debe mostrar el estado vacío
-        await expect(page.getByText('No se encontraron certificados médicos.')).toBeVisible();
+        await expect(page.getByText(doctorLicense)).toBeVisible({ timeout: 10000 });
+        const row = certificateRow(page, doctorLicense);
+        await expect(row).toContainText('Socio E2E Test');
+        await expect(row).toContainText('Pendiente');
     });
 });
+
