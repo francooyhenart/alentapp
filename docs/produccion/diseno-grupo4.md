@@ -475,3 +475,85 @@ process_memory_usage_bytes
 ```
 
 ---
+### c) Dashboard RED en Grafana
+
+El dashboard debe estar orientado a servicios HTTP. Los paneles principales se enfocan en Rate, Errors y Duration, con paneles complementarios para memoria y endpoints lentos.
+
+**Nombre recomendado:** `RED - Alentapp API`
+
+**Fuente de datos:** Prometheus.
+
+**Flujo:**
+```text
+API Fastify → OpenTelemetry SDK → /metrics (puerto 9464) → Prometheus scrapea → Grafana consulta
+```
+
+#### Paneles requeridos (mínimo 6)
+
+| Panel | Métrica | Tipo de gráfico | Propósito |
+|---|---|---|---|
+| 1. Requests por segundo | `rate(http_requests_total[1m])` | Time series | Ver el tráfico actual |
+| 2. Tasa de error | `(sum(rate(http_requests_errors_total{status=~"5.."}[1m])) or vector(0)) / sum(rate(http_requests_total[1m])) * 100` | Time series | % de errores |
+| 3. Latencia p95/p99 | `histogram_quantile(0.95, ...)` y `histogram_quantile(0.99, ...)` | Time series | Performance percibida |
+| 4. Por status code | `sum by(status) (rate(http_requests_total[1m]))` | Stacked area | Distribución de respuestas |
+| 5. Memoria del proceso | `process_memory_usage_bytes / 1024 / 1024` | Time series | Consumo de recursos |
+| 6. Endpoints más lentos | `topk(5, avg by(method, route) (...))` | Bar chart (horizontal) | Cuellos de botella |
+
+**Detalles por panel:**
+
+**Panel 1 — Requests por segundo:** muestra el tráfico actual. Un aumento junto con errores o latencia puede indicar saturación.
+
+**Panel 2 — Tasa de error:** se usa `or vector(0)` para que el panel no quede vacío cuando aún no existen series de error en Prometheus (la API funciona correctamente y no generó errores recientes). Si predominan `5xx`, el problema suele estar en el servidor; si predominan `4xx`, puede haber validaciones fallidas o rutas incorrectas.
+
+**Panel 3 — Latencia p95/p99:** si p95 o p99 suben, una parte de los usuarios sufre respuestas lentas. Puede indicar queries pesadas, bloqueos o saturación de CPU/memoria.
+
+**Panel 4 — Respuestas por status code:** la mayor parte del área debería corresponder a respuestas `2xx`. Se agrupa por `status` para visualizar el mix de respuestas.
+
+**Panel 5 — Memoria del proceso:** la memoria debería mantenerse estable bajo carga normal. Si crece constantemente sin bajar, puede indicar memory leak.
+
+**Panel 6 — Endpoints más lentos:** se agrupa por `method` y `route` para no mezclar en una misma serie endpoints con la misma ruta pero distinto método HTTP (`GET /api/v1/socios` vs `POST /api/v1/socios`).
+
+#### Consideraciones sobre nombres de métricas
+
+Los nombres finales deben confirmarse mirando el endpoint real antes de construir el dashboard:
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+OpenTelemetry y Prometheus pueden transformar nombres. En el caso de histogramas, Prometheus expone sufijos automáticos:
+
+| Nombre en código | Nombre en Prometheus |
+|---|---|
+| `http_requests_total` | `http_requests_total` |
+| `http_requests_errors_total` | `http_requests_errors_total` |
+| `http_request_duration_milliseconds` | `http_request_duration_milliseconds_bucket`, `_count`, `_sum` |
+| `http_requests_active` | `http_requests_active` |
+| `process_memory_usage_bytes` | `process_memory_usage_bytes` |
+
+#### Validación del dashboard
+
+Para verificar que el dashboard responde al tráfico real, se debe generar carga:
+
+```bash
+for i in {1..100}; do
+  curl -s http://localhost:3000/api/v1/socios > /dev/null
+  curl -s http://localhost:3000/api/v1/sports > /dev/null
+  curl -s http://localhost:3000/api/v1/lockers > /dev/null
+  sleep 0.05
+done
+```
+
+Y algún error controlado:
+
+```bash
+curl -s http://localhost:3000/api/v1/socios/99999 > /dev/null
+```
+
+Luego verificar en Grafana que:
+- Suba el panel de requests por segundo.
+- Se reflejen errores si hubo respuestas `4xx` o `5xx`.
+- Cambien los percentiles de latencia.
+- Aparezcan status codes agrupados.
+- Se vea la memoria del proceso.
+- Se listen endpoints más lentos.
