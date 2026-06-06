@@ -115,3 +115,23 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
     });
 });
 
+    // test e2e 111 - debe validar un certificado pendiente y reflejar el cambio de estado
+    test('debe validar un certificado pendiente y reflejar el cambio de estado', async ({ page }) => {
+        const doctorLicense = uniqueDoctorLicense('MN-VALIDATE');
+
+        // SETUP: creamos el certificado por API
+        await createCertificateByApi({ doctorLicense });
+
+        await waitForCertificatesPage(page);
+
+        const row = certificateRow(page, doctorLicense);
+        await expect(row).toBeVisible({ timeout: 10000 });
+        await expect(row).toContainText('Pendiente');
+
+        // ACT: aceptamos la confirmación y hacemos clic en validar
+        page.on('dialog', (dialog) => dialog.accept());
+        await row.getByRole('button', { name: /Validar certificado/i }).click();
+
+        // ASSERT: el estado debe cambiar a "Validado"
+        await expect(certificateRow(page, doctorLicense)).toContainText('Validado', { timeout: 10000 });
+    });
