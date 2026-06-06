@@ -56,21 +56,6 @@ async function createCertificateByApi(data: {
     return body.data;
 }
 
-async function validateCertificateByApi(certificateId: string) {
-    const response = await fetch(`${API_URL}/medical-certificates/${certificateId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isValidated: true }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`No se pudo validar el certificado: ${response.status} ${await response.text()}`);
-    }
-
-    const body = await response.json();
-    return body.data;
-}
-
 async function waitForCertificatesPage(page: Page) {
     await page.goto('/medical-certificates');
     // Esperamos a que la página esté lista 
@@ -113,7 +98,6 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
         await expect(row).toContainText('Socio E2E Test');
         await expect(row).toContainText('Pendiente');
     });
-});
 
     // test e2e 111 - debe validar un certificado pendiente y reflejar el cambio de estado
     test('debe validar un certificado pendiente y reflejar el cambio de estado', async ({ page }) => {
@@ -155,3 +139,4 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
         // ASSERT: la fila del certificado debe desaparecer
         await expect(certificateRow(page, doctorLicense)).toBeHidden({ timeout: 10000 });
     });
+});
