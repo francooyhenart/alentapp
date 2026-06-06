@@ -90,3 +90,92 @@ docs
 **Consideración importante:** `packages/api/package.json` tiene algunas librerías necesarias en runtime (como `fastify`, `dotenv`, `pg`) dentro de `devDependencies`. Deben moverse a `dependencies` antes de implementar el Dockerfile productivo, o la API fallará al iniciar.
 
 ---
+
+### b) `packages/web/Dockerfile.prod`
+
+#### Propósito
+
+El archivo `packages/web/Dockerfile.prod` construye una imagen productiva del frontend de Alentapp.
+
+El Dockerfile de desarrollo actual expone el puerto `5173` y ejecuta Vite con `npm run dev`. En producción no debe correr Node.js para servir el frontend: el navegador solo necesita recibir HTML, CSS, JavaScript y assets estáticos ya compilados. Por eso la imagen final usa nginx.
+
+#### Estructura: multi-stage build (3 etapas)
+
+| Etapa | Nombre | Base | Propósito |
+|---|---|---|---|
+| Stage 1 | `deps` | `node:22-alpine` | Instalar dependencias necesarias para construir el frontend |
+| Stage 2 | `build` | `node:22-alpine` | Ejecutar el build de Vite y generar `packages/web/dist` |
+| Stage 3 | `runtime` | `nginx:stable-alpine` | Servir los archivos estáticos con nginx |
+
+**Stage 1 — `deps`:** se instalan las dependencias del workspace `web` y `@alentapp/shared`. No se usa `--omit=dev` porque el build de Vite necesita herramientas de desarrollo (TypeScript, Vite, plugin de React). También se debe copiar `packages/api/package.json` porque la raíz del proyecto declara workspaces con `packages/*` y `npm ci` puede fallar si no los encuentra todos.
+
+**Stage 2 — `build`:** ejecuta el build productivo que ya existe en `packages/web/package.json`:
+
+```json
+{
+  "build": "tsc -b && vite build"
+}
+```
+
+La salida esperada es `packages/web/dist`. Si el frontend necesita conocer la URL de la API, debe recibirla como variable de build (`VITE_API_URL`).
+
+**Stage 3 — `runtime`:** copia los archivos estáticos y la configuración de nginx. No debe contener `node_modules`, código fuente, Vite ni Node.js.
+
+```Dockerfile
+COPY --from=build /app/packages/web/dist /usr/share/nginx/html
+COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+```
+
+#### Configuración de `nginx.conf`
+
+El archivo `packages/web/nginx.conf` debe configurar nginx para servir una SPA:
+
+**Soporte SPA** (evita que rutas como `/members` o `/sports` fallen al refrescar):
+```nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+**Compresión gzip:**
+```nginx
+gzip on;
+gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+```
+
+**Cache de assets** (Vite agrega hash al nombre, permiten cache larga):
+```nginx
+location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+```
+
+**Security headers:**
+```nginx
+add_header X-Frame-Options "DENY" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header X-XSS-Protection "1; mode=block" always;
+```
+
+#### Requisitos no funcionales
+
+| Punto | Decisión de diseño |
+|---|---|
+| Stage 1 | `deps` con `node:22-alpine` |
+| Stage 2 | `build` con `node:22-alpine` |
+| Stage 3 | `runtime` con `nginx:stable-alpine` |
+| Build | `npm run build -w packages/web` |
+| Salida esperada | `packages/web/dist` |
+| Servidor productivo | nginx |
+| Soporte SPA | `try_files $uri $uri/ /index.html` |
+| Optimización | gzip y cache de assets |
+| Security headers | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `X-XSS-Protection` |
+| Puerto | `80` (no `5173`) |
+| Healthcheck | `http://127.0.0.1:80/` |
+| Tamaño objetivo | 170 MB o menos (reducción ≥70% respecto a la imagen de desarrollo ~570 MB) |
+| Startup objetivo | Menos de 5 segundos hasta responder en `/` |
+
+---
