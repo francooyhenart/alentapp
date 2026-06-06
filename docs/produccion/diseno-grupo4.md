@@ -304,3 +304,39 @@ Todos los servicios se conectan a `alentapp-prod`.
 | Volumen persistente | `pgdata_prod` para PostgreSQL |
 
 ---
+
+## 2.2. Diseño de la observabilidad
+
+### a) Métricas RED a capturar
+
+Las métricas RED se aplican sobre la API Fastify para medir cómo se comporta el servicio frente a requests reales.
+
+**Las 3 métricas fundamentales:**
+
+| Métrica | Tipo OpenTelemetry | Descripción | Labels |
+|---|---|---|---|
+| Rate | Counter | Requests por segundo | `method`, `route`, `status` |
+| Errors | Counter | Tasa de error (4xx/5xx) | `method`, `route`, `status` |
+| Duration | Histogram | Latencia de requests | `method`, `route` |
+
+**Métricas adicionales:**
+
+| Métrica | Tipo OpenTelemetry | Descripción | Labels |
+|---|---|---|---|
+| `process_memory_usage_bytes` | Gauge | Memoria del proceso Node.js | Sin labels |
+| `http_requests_active` | Gauge | Requests concurrentes | `method`, `route` |
+
+**Rate (`http_requests_total`):** Counter que se incrementa en cada request recibida. Permite saber cuántos requests por segundo recibe la API, qué endpoints son más usados y si hay subidas de tráfico.
+
+**Errors (`http_requests_errors_total`):** Counter que se incrementa cuando el status de respuesta es `>= 400`. Conviene separar errores `4xx` (errores del cliente, validaciones) de `5xx` (errores internos del servidor).
+
+**Duration (`http_request_duration_milliseconds`):** Histogram en milisegundos. Se usa Histogram porque la duración de requests necesita agruparse en rangos para calcular percentiles (p95, p99). No alcanza con el promedio para detectar degradaciones reales.
+
+**Criterio de labels:** los labels deben usar rutas lógicas, no URLs con parámetros concretos.
+
+- Correcto: `/api/v1/sports/:id`
+- Incorrecto: `/api/v1/sports/4d6f3f8a-7c91-4f2d-a1ab-123456789000`
+
+Esto evita generar demasiadas series de métricas diferentes en Prometheus.
+
+---
