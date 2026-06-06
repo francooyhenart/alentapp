@@ -179,3 +179,128 @@ add_header X-XSS-Protection "1; mode=block" always;
 | Startup objetivo | Menos de 5 segundos hasta responder en `/` |
 
 ---
+
+### c) `docker-compose.prod.yml`
+
+#### Propósito
+
+El archivo `docker-compose.prod.yml` define cómo se levantan los servicios en producción. No debe montar código fuente como volumen, no debe usar `tsx watch` ni Vite, y no debe contener credenciales hardcodeadas.
+
+#### Servicios
+
+| Servicio | Imagen / Build | Puerto |
+|---|---|---|
+| `db` | `postgres:16-alpine` | interno |
+| `api` | Build desde `packages/api/Dockerfile.prod` | `3000` |
+| `web` | Build desde `packages/web/Dockerfile.prod` | `80` |
+
+Prometheus y Grafana se agregan en la sección de observabilidad.
+
+#### Variables sensibles y `.env`
+
+Las variables no deben quedar hardcodeadas. Deben venir de un archivo `.env` local no versionado:
+
+```env
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=password123
+POSTGRES_DB=alentapp_db
+DATABASE_URL=postgres://admin:password123@db:5432/alentapp_db
+NODE_ENV=production
+```
+
+Uso en el compose:
+```yaml
+environment:
+  POSTGRES_USER: ${POSTGRES_USER}
+  DATABASE_URL: ${DATABASE_URL}
+  NODE_ENV: production
+```
+
+Se puede versionar un `.env.example` con nombres de variables y valores de ejemplo no sensibles.
+
+#### Healthchecks
+
+- **`db`:** `pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB` — intervalo 10s, retries 5.
+- **`api`:** `node -e "fetch('http://127.0.0.1:3000/health')..."` — intervalo 30s, start_period 10s.
+- **`web`:** `wget -qO- http://127.0.0.1:80/ || exit 1` — intervalo 30s, start_period 10s.
+
+La API debe depender del healthcheck de `db`:
+```yaml
+depends_on:
+  db:
+    condition: service_healthy
+```
+
+#### Resource limits
+
+| Servicio | CPU | Memoria |
+|---|---|---|
+| `db` | `1.00` | `1G` |
+| `api` | `0.75` | `512M` |
+| `web` | `0.25` | `128M` |
+
+Los valores pueden ajustarse después de medir con `docker stats --no-stream`.
+
+#### Seguridad de contenedores
+
+Cada servicio debe incluir las siguientes restricciones:
+
+```yaml
+read_only: true
+cap_drop:
+  - ALL
+security_opt:
+  - no-new-privileges=true
+```
+
+Para `web`, dado que nginx necesita bindear el puerto `80` (puerto privilegiado):
+```yaml
+cap_add:
+  - NET_BIND_SERVICE
+```
+
+Como `read_only: true` impide escritura en el filesystem, se agregan montajes temporales en memoria:
+
+- **`api`:** `tmpfs: [/tmp]`
+- **`web`:** `tmpfs: [/var/cache/nginx, /var/run, /var/log/nginx]`
+
+En el servicio `db`, `read_only: true` debe validarse con especial cuidado porque PostgreSQL necesita escribir en su volumen de datos y puede requerir directorios temporales. El diseño debe combinar `read_only` con el volumen persistente `pgdata_prod` y los `tmpfs` necesarios para que el contenedor pueda iniciar sin romper la restricción de seguridad.
+
+#### Logging con rotación
+
+Todos los servicios deben usar logging con rotación para evitar que los logs crezcan sin límite:
+
+```yaml
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+```
+
+#### Red interna
+
+No debe usarse la red default de Docker Compose. Se define una red propia:
+
+```yaml
+networks:
+  alentapp-prod:
+    driver: bridge
+```
+
+Todos los servicios se conectan a `alentapp-prod`.
+
+#### Resumen del diseño
+
+| Aspecto | Decisión de diseño |
+|---|---|
+| Servicios base | `db`, `api`, `web` |
+| Resource limits | CPU y memoria definidos por servicio |
+| Healthchecks | DB con `pg_isready`, API con `/health`, Web contra `/` |
+| Seguridad | `read_only` con `tmpfs`, `cap_drop: ALL`, `cap_add: NET_BIND_SERVICE` (web), `no-new-privileges=true` |
+| Logging | `json-file`, `max-size: 10m`, `max-file: 3` |
+| Red | `alentapp-prod` (no default bridge) |
+| Secrets | Variables sensibles desde `.env` |
+| Volumen persistente | `pgdata_prod` para PostgreSQL |
+
+---
