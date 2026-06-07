@@ -1,4 +1,4 @@
-import { Locker } from './Locker';
+import { Locker } from './Locker.js';
 
 export interface LockerRepository {
   save(locker: Omit<Locker, 'id'>): Promise<Locker>;

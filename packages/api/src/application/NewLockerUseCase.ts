@@ -1,5 +1,5 @@
-import { Locker } from '../domain/Locker';
-import { LockerRepository } from '../domain/LockerRepository';
+import { Locker } from '../domain/Locker.js';
+import { LockerRepository } from '../domain/LockerRepository.js';
 
 export interface NewLockerInput {
   number: number;

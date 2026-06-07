@@ -89,3 +89,4 @@ export async function LockerController(fastify: FastifyInstance) {
       return reply.status(statusCode).send({ error: error.message });
     }
   });
+}
