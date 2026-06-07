@@ -38,6 +38,12 @@ alentapp-web  latest  873MB
 alentapp-api  latest  1.54GB
 ```
 
+Evidencia visual:
+
+![Almacenamiento imagenes desarrollo](./evidencias/alamcenamiento%20imagenes%20dev.jpeg)
+
+![Almacenamiento imagenes produccion](./evidencias/almacenamiento%20imagenes%20prod.jpeg)
+
 ### Evidencia de tiempo de startup API
 
 Comando utilizado para medir desarrollo:
@@ -52,6 +58,10 @@ Resultado:
 real 738.8s
 ```
 
+Evidencia visual:
+
+![Tiempo startup desarrollo](./evidencias/tiempo%20star%20up%20dev.jpeg)
+
 Comando utilizado para medir produccion:
 
 ```bash
@@ -63,6 +73,10 @@ Resultado:
 ```text
 real 1m4.091s
 ```
+
+Evidencia visual:
+
+![Tiempo startup produccion](./evidencias/tiempo%20start%20up%20prod.jpeg)
 
 La medicion se toma hasta que el endpoint `/health` responde correctamente, porque ese punto indica que la API esta lista para recibir trafico.
 
