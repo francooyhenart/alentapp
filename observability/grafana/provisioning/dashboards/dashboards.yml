@@ -1,0 +1,22 @@
+# Provisioning del provider de dashboards en Grafana
+# Le dice a Grafana donde buscar los archivos JSON de dashboards
+# Cualquier JSON que se coloque en /etc/grafana/provisioning/dashboards
+# se cargara automaticamente al arrancar Grafana
+
+apiVersion: 1
+
+providers:
+  - name: 'alentapp-dashboards'
+    orgId: 1
+    # Carpeta donde aparecen los dashboards en la UI de Grafana
+    folder: 'Alentapp'
+    type: file
+    # Permite borrar dashboards desde la UI (no afecta los archivos del repo)
+    disableDeletion: false
+    # Cada 30 segundos Grafana revisa si hay dashboards nuevos en la carpeta
+    updateIntervalSeconds: 30
+    # Permite editar dashboards desde la UI temporalmente (los cambios no se guardan)
+    allowUiUpdates: true
+    options:
+      # Ruta dentro del contenedor donde Grafana busca los JSON
+      path: /etc/grafana/provisioning/dashboards

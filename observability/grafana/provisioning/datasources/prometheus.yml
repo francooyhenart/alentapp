@@ -1,0 +1,22 @@
+# Provisioning del datasource Prometheus en Grafana
+# Configura automaticamente Prometheus como fuente de datos al arrancar Grafana
+# Sin esto, habria que entrar a la UI y crear el datasource a mano
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    # 'proxy' significa que Grafana hace las queries a Prometheus desde el backend
+    # (no desde el navegador), lo cual es necesario porque el navegador del usuario
+    # no tiene acceso a la red interna de Docker
+    access: proxy
+    # URL interna de Docker para llegar a Prometheus
+    # 'prometheus' es el nombre del servicio en docker-compose.prod.yml
+    # 9090 es el puerto estandar de Prometheus
+    url: http://prometheus:9090
+    # Marca este datasource como el por defecto: cuando se crea un panel nuevo,
+    # se selecciona automaticamente
+    isDefault: true
+    # No permitir modificar el datasource desde la UI
+    editable: false
