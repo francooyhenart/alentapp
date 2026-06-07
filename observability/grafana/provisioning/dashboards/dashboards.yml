@@ -19,4 +19,4 @@ providers:
     allowUiUpdates: true
     options:
       # Ruta dentro del contenedor donde Grafana busca los JSON
-      path: /etc/grafana/provisioning/dashboards
+      path: /etc/grafana/dashboards
