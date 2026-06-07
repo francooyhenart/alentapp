@@ -67,11 +67,35 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - alentapp-prod
     logging: *default-logging
     <<: *default-security
     cpus: 0.75
+    mem_limit: 512m
+
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile.prod
+      target: build
+    container_name: alentapp-migrate-prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+    command: ["/app/node_modules/.bin/prisma", "migrate", "deploy", "--config", "prisma.config.ts"]
+    working_dir: /app/packages/api
+    tmpfs:
+      - /tmp
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - alentapp-prod
+    logging: *default-logging
+    <<: *default-security
+    cpus: 0.5
     mem_limit: 512m
 
   web:
