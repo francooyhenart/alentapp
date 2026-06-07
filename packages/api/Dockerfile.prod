@@ -86,6 +86,12 @@ COPY --from=runtime-deps /app/packages/api/node_modules ./node_modules
 COPY --from=build /app/packages/api/dist ./dist
 COPY --from=build /app/packages/api/prisma ./prisma
 
+USER root
+
+RUN rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+  && rm -f /bin/ping /bin/ping6 /usr/bin/ping /usr/bin/ping6
+
 EXPOSE 3000
 
 USER node
