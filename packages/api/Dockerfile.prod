@@ -71,6 +71,12 @@ RUN npm pkg delete dependencies.@alentapp/shared \
     node_modules/react-dom \
     node_modules/remeda \
     node_modules/valibot \
+  && find node_modules/@prisma/client/runtime -type f \( \
+    -name '*mysql*' -o \
+    -name '*sqlite*' -o \
+    -name '*sqlserver*' -o \
+    -name '*cockroachdb*' \
+  \) -delete \
   && npm cache clean --force \
   && rm -rf /root/.npm
 
