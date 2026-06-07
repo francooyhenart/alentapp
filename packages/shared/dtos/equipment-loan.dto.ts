@@ -1,6 +1,6 @@
 export interface CreateEquipmentLoanRequestDto {
   itemName: string;
-  memberDNI: string;
+  memberDni: string;
   notes?: string;
 }
 

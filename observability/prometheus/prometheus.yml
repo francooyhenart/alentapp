@@ -1,0 +1,22 @@
+# Configuracion de Prometheus para Alentapp
+# Scrapea las metricas RED expuestas por la API de Alentapp via OpenTelemetry
+
+global:
+  # Cada cuanto Prometheus consulta a los targets
+  scrape_interval: 15s
+  # Cada cuanto Prometheus evalua reglas de alerta (no usamos alertas en este TP)
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Job que scrapea la API de Alentapp
+  - job_name: 'alentapp-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+          # Resolucion por DNS interno de Docker:
+          # 'api' es el nombre del servicio en docker-compose.prod.yml
+          # 9464 es el puerto del PrometheusExporter de OpenTelemetry
+          - 'api:9464'
+        labels:
+          app: 'alentapp'
+          service: 'api'

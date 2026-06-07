@@ -70,7 +70,7 @@ export class PrismaEquipmentLoanRepository implements EquipmentLoanRepository {
       }
     });
 
-    return loans.map(loan => EquipmentLoan.reconstitute({
+    return loans.map((loan: any) => EquipmentLoan.reconstitute({
       id: loan.id,
       itemName: loan.itemName,
       status: LoanStatusVO.create(loan.status),

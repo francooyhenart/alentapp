@@ -304,3 +304,256 @@ Todos los servicios se conectan a `alentapp-prod`.
 | Volumen persistente | `pgdata_prod` para PostgreSQL |
 
 ---
+
+## 2.2. Diseño de la observabilidad
+
+### a) Métricas RED a capturar
+
+Las métricas RED se aplican sobre la API Fastify para medir cómo se comporta el servicio frente a requests reales.
+
+**Las 3 métricas fundamentales:**
+
+| Métrica | Tipo OpenTelemetry | Descripción | Labels |
+|---|---|---|---|
+| Rate | Counter | Requests por segundo | `method`, `route`, `status` |
+| Errors | Counter | Tasa de error (4xx/5xx) | `method`, `route`, `status` |
+| Duration | Histogram | Latencia de requests | `method`, `route` |
+
+**Métricas adicionales:**
+
+| Métrica | Tipo OpenTelemetry | Descripción | Labels |
+|---|---|---|---|
+| `process_memory_usage_bytes` | Gauge | Memoria del proceso Node.js | Sin labels |
+| `http_requests_active` | Gauge | Requests concurrentes | `method`, `route` |
+
+**Rate (`http_requests_total`):** Counter que se incrementa en cada request recibida. Permite saber cuántos requests por segundo recibe la API, qué endpoints son más usados y si hay subidas de tráfico.
+
+**Errors (`http_requests_errors_total`):** Counter que se incrementa cuando el status de respuesta es `>= 400`. Conviene separar errores `4xx` (errores del cliente, validaciones) de `5xx` (errores internos del servidor).
+
+**Duration (`http_request_duration_milliseconds`):** Histogram en milisegundos. Se usa Histogram porque la duración de requests necesita agruparse en rangos para calcular percentiles (p95, p99). No alcanza con el promedio para detectar degradaciones reales.
+
+**Criterio de labels:** los labels deben usar rutas lógicas, no URLs con parámetros concretos.
+
+- Correcto: `/api/v1/sports/:id`
+- Incorrecto: `/api/v1/sports/4d6f3f8a-7c91-4f2d-a1ab-123456789000`
+
+Esto evita generar demasiadas series de métricas diferentes en Prometheus.
+
+---
+
+### b) OpenTelemetry SDK
+
+La integración debe ubicarse en la capa de infraestructura en:
+
+```text
+packages/api/src/infrastructure/telemetry.ts
+```
+
+Ese archivo centraliza la configuración del SDK, el exporter de Prometheus y la creación de métricas personalizadas RED.
+
+#### Dependencias necesarias
+
+```bash
+npm -w packages/api install \
+  @opentelemetry/sdk-node \
+  @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-prometheus \
+  @opentelemetry/instrumentation-http \
+  @opentelemetry/instrumentation-fastify \
+  @opentelemetry/api
+```
+
+| Dependencia | Propósito |
+|---|---|
+| `@opentelemetry/sdk-node` | Inicializar el SDK para Node.js |
+| `@opentelemetry/exporter-prometheus` | Exponer métricas en formato compatible con Prometheus |
+| `@opentelemetry/auto-instrumentations-node` | Activar auto-instrumentaciones comunes |
+| `@opentelemetry/instrumentation-http` | Instrumentar tráfico HTTP |
+| `@opentelemetry/instrumentation-fastify` | Instrumentar Fastify |
+| `@opentelemetry/api` | Usar la API pública de métricas (`metrics.getMeter`) |
+
+#### Configuración conceptual del SDK
+
+```ts
+// Estructura conceptual de la configuración OpenTelemetry
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { metrics } from '@opentelemetry/api';
+
+// Configuración a implementar:
+// 1. PrometheusExporter en puerto 9464 (o el que elijan)
+// 2. Auto-instrumentaciones para HTTP y Fastify
+// 3. Métricas personalizadas RED definidas arriba
+```
+
+El exporter expone las métricas en:
+
+```text
+Puerto API:      3000
+Puerto métricas: 9464
+Endpoint:        http://localhost:9464/metrics
+```
+
+En Docker Compose, Prometheus accede usando el nombre del servicio: `api:9464/metrics`.
+
+#### Métricas personalizadas — instrumento OpenTelemetry
+
+| Métrica RED | Instrumento | Nombre |
+|---|---|---|
+| Rate | Counter | `http_requests_total` |
+| Errors | Counter | `http_requests_errors_total` |
+| Duration | Histogram | `http_request_duration_milliseconds` |
+| Requests concurrentes | UpDownCounter | `http_requests_active` |
+| Memoria del proceso | ObservableGauge | `process_memory_usage_bytes` |
+
+- `http_requests_active` se implementa con `createUpDownCounter` porque sube en `+1` al entrar una request y baja en `-1` cuando termina.
+- `process_memory_usage_bytes` se implementa con `createObservableGauge` porque la memoria se observa en cada scrape y no se modifica manualmente desde los handlers.
+
+#### Hooks globales de Fastify
+
+Las métricas RED se registran a nivel de infraestructura usando hooks globales de Fastify. No se debe envolver manualmente cada handler con `try/catch/finally`, para no mezclar observabilidad con lógica de negocio.
+
+```ts
+server.addHook('onRequest', async (request) => {
+  request.startTime = Date.now();
+  activeRequests.add(1, { method: request.method, route: request.routeOptions?.url ?? request.url });
+});
+
+server.addHook('onResponse', async (request, reply) => {
+  const method = request.method;
+  const route = request.routeOptions?.url ?? request.url;
+  const status = String(reply.statusCode);
+  const duration = Date.now() - request.startTime;
+
+  requestCounter.add(1, { method, route, status });
+
+  if (reply.statusCode >= 400) {
+    errorCounter.add(1, { method, route, status });
+  }
+
+  requestDuration.record(duration, { method, route });
+  activeRequests.add(-1, { method, route });
+});
+```
+
+#### Inicialización en la API
+
+OpenTelemetry debe inicializarse antes de que Fastify y las rutas se registren. En `packages/api/src/app.ts`, la importación debe estar al inicio del archivo, antes de importar Fastify:
+
+```ts
+import './infrastructure/telemetry.js';
+import Fastify from 'fastify';
+```
+
+#### Labels por métrica
+
+| Métrica | Labels |
+|---|---|
+| `http_requests_total` | `method`, `route`, `status` |
+| `http_requests_errors_total` | `method`, `route`, `status` |
+| `http_request_duration_milliseconds` | `method`, `route` |
+| `http_requests_active` | `method`, `route` |
+| `process_memory_usage_bytes` | Sin labels |
+
+#### Verificación esperada
+
+Una vez implementado el SDK, debe poder validarse:
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+Después de generar tráfico contra la API, deben aparecer las métricas:
+
+```text
+http_requests_total
+http_requests_errors_total
+http_request_duration_milliseconds_bucket / _count / _sum
+http_requests_active
+process_memory_usage_bytes
+```
+
+---
+### c) Dashboard RED en Grafana
+
+El dashboard debe estar orientado a servicios HTTP. Los paneles principales se enfocan en Rate, Errors y Duration, con paneles complementarios para memoria y endpoints lentos.
+
+**Nombre recomendado:** `RED - Alentapp API`
+
+**Fuente de datos:** Prometheus.
+
+**Flujo:**
+```text
+API Fastify → OpenTelemetry SDK → /metrics (puerto 9464) → Prometheus scrapea → Grafana consulta
+```
+
+#### Paneles requeridos (mínimo 6)
+
+| Panel | Métrica | Tipo de gráfico | Propósito |
+|---|---|---|---|
+| 1. Requests por segundo | `rate(http_requests_total[1m])` | Time series | Ver el tráfico actual |
+| 2. Tasa de error | `(sum(rate(http_requests_errors_total{status=~"5.."}[1m])) or vector(0)) / sum(rate(http_requests_total[1m])) * 100` | Time series | % de errores |
+| 3. Latencia p95/p99 | `histogram_quantile(0.95, ...)` y `histogram_quantile(0.99, ...)` | Time series | Performance percibida |
+| 4. Por status code | `sum by(status) (rate(http_requests_total[1m]))` | Stacked area | Distribución de respuestas |
+| 5. Memoria del proceso | `process_memory_usage_bytes / 1024 / 1024` | Time series | Consumo de recursos |
+| 6. Endpoints más lentos | `topk(5, avg by(method, route) (...))` | Bar chart (horizontal) | Cuellos de botella |
+
+**Detalles por panel:**
+
+**Panel 1 — Requests por segundo:** muestra el tráfico actual. Un aumento junto con errores o latencia puede indicar saturación.
+
+**Panel 2 — Tasa de error:** se usa `or vector(0)` para que el panel no quede vacío cuando aún no existen series de error en Prometheus (la API funciona correctamente y no generó errores recientes). Si predominan `5xx`, el problema suele estar en el servidor; si predominan `4xx`, puede haber validaciones fallidas o rutas incorrectas.
+
+**Panel 3 — Latencia p95/p99:** si p95 o p99 suben, una parte de los usuarios sufre respuestas lentas. Puede indicar queries pesadas, bloqueos o saturación de CPU/memoria.
+
+**Panel 4 — Respuestas por status code:** la mayor parte del área debería corresponder a respuestas `2xx`. Se agrupa por `status` para visualizar el mix de respuestas.
+
+**Panel 5 — Memoria del proceso:** la memoria debería mantenerse estable bajo carga normal. Si crece constantemente sin bajar, puede indicar memory leak.
+
+**Panel 6 — Endpoints más lentos:** se agrupa por `method` y `route` para no mezclar en una misma serie endpoints con la misma ruta pero distinto método HTTP (`GET /api/v1/socios` vs `POST /api/v1/socios`).
+
+#### Consideraciones sobre nombres de métricas
+
+Los nombres finales deben confirmarse mirando el endpoint real antes de construir el dashboard:
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+OpenTelemetry y Prometheus pueden transformar nombres. En el caso de histogramas, Prometheus expone sufijos automáticos:
+
+| Nombre en código | Nombre en Prometheus |
+|---|---|
+| `http_requests_total` | `http_requests_total` |
+| `http_requests_errors_total` | `http_requests_errors_total` |
+| `http_request_duration_milliseconds` | `http_request_duration_milliseconds_bucket`, `_count`, `_sum` |
+| `http_requests_active` | `http_requests_active` |
+| `process_memory_usage_bytes` | `process_memory_usage_bytes` |
+
+#### Validación del dashboard
+
+Para verificar que el dashboard responde al tráfico real, se debe generar carga:
+
+```bash
+for i in {1..100}; do
+  curl -s http://localhost:3000/api/v1/socios > /dev/null
+  curl -s http://localhost:3000/api/v1/sports > /dev/null
+  curl -s http://localhost:3000/api/v1/lockers > /dev/null
+  sleep 0.05
+done
+```
+
+Y algún error controlado:
+
+```bash
+curl -s http://localhost:3000/api/v1/socios/99999 > /dev/null
+```
+
+Luego verificar en Grafana que:
+- Suba el panel de requests por segundo.
+- Se reflejen errores si hubo respuestas `4xx` o `5xx`.
+- Cambien los percentiles de latencia.
+- Aparezcan status codes agrupados.
+- Se vea la memoria del proceso.
+- Se listen endpoints más lentos.

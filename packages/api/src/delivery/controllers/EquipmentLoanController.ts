@@ -34,7 +34,7 @@ export class EquipmentLoanController {
   async create(
     request: FastifyRequest<{ Body: CreateEquipmentLoanBody }>,
     reply: FastifyReply
-  ): Promise<void> {
+  ): Promise<FastifyReply | void> {
     try {
       const result = await this.createEquipmentLoanUseCase.execute(request.body);
       return reply.status(201).send(result);
@@ -49,7 +49,7 @@ export class EquipmentLoanController {
       Body: ReturnEquipmentLoanBody 
     }>,
     reply: FastifyReply
-  ): Promise<void> {
+  ): Promise<FastifyReply | void> {
     try {
       const result = await this.returnEquipmentLoanUseCase.execute(
         request.params.id,
@@ -66,7 +66,7 @@ export class EquipmentLoanController {
   async list(
     request: FastifyRequest,
     reply: FastifyReply
-  ): Promise<void> {
+  ): Promise<FastifyReply | void> {
     try {
       const loans = await this.getEquipmentLoansUseCase.execute();
       return reply.status(200).send(loans);
@@ -81,7 +81,7 @@ export class EquipmentLoanController {
       Body: CancelEquipmentLoanBody
     }>,
     reply: FastifyReply
-  ): Promise<void> {
+  ): Promise<FastifyReply | void> {
     try {
       const result = await this.cancelEquipmentLoanUseCase.execute(
         request.params.id,
@@ -94,7 +94,7 @@ export class EquipmentLoanController {
     }
   }
 
-  private handleError(error: unknown, reply: FastifyReply): void {
+  private handleError(error: unknown, reply: FastifyReply): FastifyReply {
     // Errores 403 Forbidden
     if (error instanceof CategoryRestrictionError) {
       return reply.status(403).send({

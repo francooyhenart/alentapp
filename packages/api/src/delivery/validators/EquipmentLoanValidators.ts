@@ -3,15 +3,13 @@ import { z } from 'zod';
 export const createEquipmentLoanSchema = z.object({
   body: z.object({
     itemName: z
-      .string({
-        required_error: 'El nombre del ítem es requerido'
-      })
+      .string({ message: 'El nombre del ítem es requerido' })
       .min(3, 'El nombre del ítem debe tener al menos 3 caracteres')
       .max(255, 'El nombre del ítem no puede exceder 255 caracteres')
       .trim(),
     
     memberDni: z
-      .string({ required_error: 'El DNI del socio es requerido' })
+      .string({ message: 'El DNI del socio es requerido' })
       .min(6, 'El DNI debe tener al menos 6 caracteres')
       .max(10, 'El DNI no puede exceder 10 caracteres')
       .regex(/^[0-9]+$/, 'El DNI solo debe contener números')
@@ -30,9 +28,7 @@ export type CreateEquipmentLoanBody = z.infer<typeof createEquipmentLoanSchema>[
 export const returnEquipmentLoanSchema = z.object({
   params: z.object({
     id: z
-      .string({
-        required_error: 'El ID del préstamo es requerido'
-      })
+      .string({ message: 'El ID del préstamo es requerido' })
       .uuid('El ID del préstamo debe ser un UUID válido')
   }),
   body: z.object({
@@ -66,9 +62,7 @@ export type ReturnEquipmentLoanBody = z.infer<typeof returnEquipmentLoanSchema>[
 export const cancelEquipmentLoanSchema = z.object({
   params: z.object({
     id: z
-      .string({
-        required_error: 'El ID del préstamo es requerido'
-      })
+      .string({ message: 'El ID del préstamo es requerido' })
       .uuid('El ID del préstamo debe ser un UUID válido')
   }),
   body: z.object({

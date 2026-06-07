@@ -19,7 +19,12 @@ export class UpdateSportUseCase {
             throw new Error('El cupo maximo debe ser un numero entero mayor a cero');
         }
 
-        const updateData: Partial<Omit<Sport, 'id' | 'name'>> = {};
+        const updateData: {
+            description?: string;
+            max_capacity?: number;
+            additional_price?: number;
+            requires_medical_certificate?: boolean;
+        } = {};
 
         if (data.description !== undefined) {
             updateData.description = data.description.trim();
