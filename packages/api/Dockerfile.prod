@@ -1,0 +1,62 @@
+FROM node:22-alpine AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/api/package.json ./packages/api/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/web/package.json ./packages/web/package.json
+
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --workspace=@alentapp/api --workspace=@alentapp/shared
+
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json ./
+COPY packages/api/package.json ./packages/api/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/web/package.json ./packages/web/package.json
+
+COPY --from=deps /app/node_modules ./node_modules
+
+RUN npm install --no-save --ignore-scripts --no-audit --no-fund \
+  typescript@^6.0.3 \
+  prisma@^7.7.0 \
+  @types/node@^25.6.0 \
+  @types/pg@^8.20.0
+
+COPY packages/api ./packages/api
+COPY packages/shared ./packages/shared
+
+WORKDIR /app/packages/api
+
+ENV DATABASE_URL=postgresql://admin:password123@localhost:5432/alentapp_db
+
+RUN npm run prisma:generate
+RUN npm run build
+
+FROM node:22-alpine AS runtime
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/api/package.json ./packages/api/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/packages/api/dist ./packages/api/dist
+COPY --from=build /app/packages/api/prisma ./packages/api/prisma
+
+WORKDIR /app/packages/api
+
+EXPOSE 3000
+
+USER node
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
+CMD ["node", "dist/app.js"]
