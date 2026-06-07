@@ -280,3 +280,216 @@ Resultado:
 200
 {"status":"ok"}
 ```
+
+## 4.3. Verificación de observabilidad
+
+### OpenTelemetry exporta métricas en `:9464/metrics`
+
+```bash
+curl http://localhost:9464/metrics
+```
+
+El endpoint responde con métricas en formato Prometheus. Entre las más relevantes:
+
+```
+http_requests_total{method="GET",route="/health",status="200"} 10
+http_request_duration_milliseconds_bucket{method="GET",route="/health",...}
+http_requests_active{otel_scope_name="alentapp-api"} 0
+process_memory_usage_bytes{otel_scope_name="alentapp-api"} 102338560
+```
+
+### Prometheus scrapea correctamente el endpoint
+
+```bash
+curl http://localhost:9090/-/ready
+# Prometheus Server is Ready.
+```
+
+Prometheus está configurado con un job `alentapp-api` que apunta a `api:9464` por la red interna de Docker. En la UI (`http://localhost:9090/targets`) el target aparece con estado **UP**, con labels `app="alentapp"`, `instance="api:9464"`, `job="alentapp-api"`, `service="api"` y duración de scrape de ~6 ms.
+
+Verificación de métricas disponibles en Prometheus:
+
+```bash
+curl -s http://localhost:9090/api/v1/label/__name__/values | grep -o '"http[^"]*"'
+```
+
+Resultado:
+
+```
+"http_request_duration_milliseconds_bucket"
+"http_request_duration_milliseconds_count"
+"http_request_duration_milliseconds_sum"
+"http_requests_active"
+"http_requests_errors_total"
+"http_requests_total"
+```
+
+### Grafana tiene datasource Prometheus configurado
+
+```bash
+curl -s http://admin:admin@localhost:3001/api/datasources | grep -o '"uid":"[^"]*"'
+# "uid":"PBFA97CFB590B2093"
+```
+
+El datasource se aprovisiona automáticamente al levantar el contenedor desde `observability/grafana/provisioning/datasources/prometheus.yml`, sin necesidad de configurarlo manualmente desde la UI.
+
+### Dashboard RED con 6 paneles funcionales
+
+```bash
+curl -s http://admin:admin@localhost:3001/api/dashboards/uid/alentapp-red-metrics \
+  | grep -o '"title": "[^"]*"'
+```
+
+Resultado:
+
+```
+"title": "Requests por segundo"
+"title": "Requests por status code"
+"title": "Tasa de error"
+"title": "Latencia p50 / p95 / p99"
+"title": "Top 5 endpoints mas lentos (promedio)"
+"title": "Memoria del proceso Node.js"
+"title": "RED - Alentapp API"
+```
+
+### Gráficos responden al tráfico generado
+
+Se generó tráfico con:
+
+```bash
+for i in {1..100}; do
+  curl -s http://localhost:3000/api/v1/socios > /dev/null
+  curl -s http://localhost:3000/api/v1/sports > /dev/null
+  curl -s http://localhost:3000/api/v1/lockers > /dev/null
+  sleep 0.05
+done
+```
+
+Los paneles de requests por segundo y status code reflejaron el tráfico dentro de los 30 segundos siguientes al scrape de Prometheus.
+
+### Métricas de error reflejan 4xx/5xx
+
+Se generó un error controlado:
+
+```bash
+curl http://localhost:3000/api/v1/socios/99999
+```
+
+El panel de status code mostró la aparición de status 404 como serie separada, y el panel de tasa de error registró el incremento correspondiente.
+
+---
+
+## 4.4. Documentación de decisiones
+
+### Arquitectura final
+
+```
+API Fastify (puerto 3000)
+  └── OpenTelemetry SDK
+        └── PrometheusExporter (puerto 9464)
+                    ↓
+              Prometheus (scrape cada 15s)
+                    ↓
+                 Grafana
+                    └── Dashboard RED - Alentapp API
+```
+
+Todos los servicios corren en la misma red Docker interna `alentapp-prod`. Prometheus accede a la API por nombre de servicio (`api:9464`), sin exponer puertos innecesarios al exterior.
+
+### Decisiones técnicas — infraestructura Docker
+
+**Multi-stage build para las imágenes**
+
+Se eligió un Dockerfile de 3 etapas (deps → build → runtime) para que la imagen final no contenga herramientas de compilación ni código fuente. El resultado son imágenes más pequeñas y sin superficie de ataque innecesaria.
+
+**nginx para el frontend**
+
+En desarrollo Vite sirve los archivos con hot reload. En producción eso no tiene sentido: se compila el frontend una sola vez y nginx sirve los archivos estáticos. Es más rápido, más liviano y más seguro.
+
+### Decisiones técnicas — OpenTelemetry
+
+**OpenTelemetry con hooks globales de Fastify**
+
+En lugar de instrumentar cada endpoint manualmente, se usaron los hooks `onRequest` y `onResponse` de Fastify para registrar métricas en un solo lugar. Esto mantiene la observabilidad separada de la lógica de negocio. Las rutas nuevas se instrumentan automáticamente sin modificar nada.
+
+**Nombres de métricas con guiones bajos, no puntos**
+
+Se usaron nombres de métricas con guiones bajos (`http_requests_total`) en lugar de puntos (`http.requests.total`). Es la convención nativa de Prometheus. Si se usan puntos, OpenTelemetry los traduce automáticamente al exportar, pero definirlos directamente con guiones bajos es más claro y evita inconsistencias entre cómo se ven en el código y cómo se consultan en PromQL.
+
+**`process.hrtime.bigint()` en lugar de `Date.now()` para medir duración**
+
+`Date.now()` tiene precisión de milisegundos. `process.hrtime.bigint()` tiene precisión de nanosegundos. Para requests rápidos (menos de 5ms), `Date.now()` puede devolver 0 y arruinar las métricas de latencia. Con `hrtime.bigint()` la medición es siempre exacta.
+
+**Ruta normalizada en los labels**
+
+Se usó `request.routeOptions?.url ?? request.url` para el label `route`. La primera devuelve la ruta normalizada (`/api/v1/socios/:id`), la segunda devuelve la URL real (`/api/v1/socios/abc-uuid-123`).
+
+Si se hubiera usado solo `request.url`, Prometheus generaría una serie diferente por cada UUID, explotando la cardinalidad de las métricas y rompiendo Prometheus en escenarios reales.
+
+**Dependencias en `dependencies`, no `devDependencies`**
+
+Los seis paquetes de OpenTelemetry se instalaron sin `--save-dev`. El stage `runtime` del `Dockerfile.prod` solo instala dependencias de producción con `npm ci --omit=dev`. Si se hubieran puesto como devDependencies, la API no encontraría los módulos al levantar el contenedor productivo.
+
+### Decisiones técnicas — Prometheus y Grafana
+
+**Resolución por nombre de servicio (`api:9464`), no `host.docker.internal`**
+
+Prometheus accede al endpoint de métricas usando `api:9464`. La consigna del profesor menciona la forma con `host.docker.internal`, pero esa sintaxis solo aplica cuando Prometheus corre fuera de Docker.
+
+En este caso Prometheus está dentro del mismo `docker-compose.prod.yml` que la API, en la misma red `alentapp-prod`. Docker resuelve el nombre del servicio (`api`) automáticamente. Esto es más robusto, más portable, y funciona igual en cualquier host (sin depender de `host.docker.internal`, que es específico de Docker Desktop).
+
+**Versiones pineadas, no `latest`**
+
+Se usaron tags específicos para las imágenes: `prom/prometheus:v2.55.0` y `grafana/grafana:11.2.0`. Usar `latest` es peligroso en producción: una actualización breaking de la imagen puede romper el ambiente sin que nadie haya tocado nada, y no es reproducible entre quienes clonan el repo en distintos momentos. Pinear obliga a actualizar conscientemente.
+
+**Provisioning automático de Grafana (Infrastructure as Code)**
+
+El datasource y el dashboard se cargan automáticamente al levantar el contenedor desde archivos de configuración versionados en `observability/grafana/provisioning/`. No hay configuración manual desde la UI, lo que hace el setup completamente reproducible. El datasource tiene `editable: false` para evitar que alguien lo modifique desde la UI por accidente.
+
+**Grafana sin `read_only: true`**
+
+A diferencia de los otros servicios del compose, Grafana corre sin `read_only: true`. Grafana necesita escribir en `/var/lib/grafana` (su SQLite interna con usuarios, dashboards, settings). Si se pone `read_only: true`, no arranca.
+
+Se compensó con las otras restricciones de seguridad: `cap_drop: ALL` y `no-new-privileges=true`, más el volumen named `grafana_data` que aísla la escritura a un único directorio gestionado por Docker.
+
+### Problemas encontrados
+
+**Orden de imports en `app.ts`**
+
+OpenTelemetry instrumenta automáticamente HTTP y Fastify "parcheando" esos módulos. Para que las auto-instrumentaciones funcionen, el import de telemetría tiene que estar antes que el import de Fastify. Si se importa Fastify primero, las auto-instrumentaciones llegan tarde y no se activan.
+
+**Solución**: poner `import './infrastructure/telemetry.js';` como la primera línea de `app.ts`, antes de cualquier otro import.
+
+**Cast `as any` en el `NodeSDK`**
+
+Al instanciar `new NodeSDK({ metricReader: prometheusExporter, ... })` TypeScript marcaba un error de tipos. Las versiones publicadas de `@opentelemetry/sdk-node` y `@opentelemetry/exporter-prometheus` no siempre comparten exactamente el mismo type signature para `metricReader`.
+
+**Solución**: se agregó `as any` al final del objeto de configuración. Es un cast aceptado en el ecosistema de OpenTelemetry hasta que se alineen las versiones de los tipos. El SDK funciona correctamente en runtime.
+
+**Conflicto de puertos entre la API y Grafana**
+
+La API corre en el puerto 3000 del host. Grafana, por defecto, también escucha en el puerto 3000 dentro de su contenedor. Si se hacía un mapeo directo `3000:3000`, los dos puertos del host chocaban.
+
+**Solución**: mapear `3001:3000`. Internamente Grafana sigue en 3000, pero desde el host se accede por 3001. Así la API queda en `localhost:3000` y Grafana en `localhost:3001`, cada uno en su puerto.
+
+**Conflicto de volúmenes en Grafana**
+
+El mayor problema fue lograr que Grafana levantara correctamente. El compose original montaba toda la carpeta `provisioning` como un volumen read-only, y después intentaba montar `dashboards` como una subcarpeta de ese mismo path. Docker no puede crear un mountpoint dentro de un filesystem ya montado como read-only, así que el contenedor fallaba al arrancar.
+
+**Solución**: separar los volúmenes por subdirectorio: `datasources` y `dashboards` cada uno apuntando a su propia ruta dentro del contenedor.
+
+**UID del datasource hardcodeado**
+
+El dashboard JSON referenciaba el datasource de Prometheus con `"uid": "prometheus"`, pero Grafana genera su propio UID al crear el datasource desde el provisioning. Los paneles mostraban "Datasource not found" hasta que se actualizó el JSON con el UID real (`PBFA97CFB590B2093`).
+
+**Solución**: actualizar el JSON del dashboard con el UID que generó Grafana. Para futuros deployments esto se puede resolver configurando el UID explícitamente en el archivo de provisioning del datasource.
+
+**Puerto 3001 ocupado**
+
+Durante el desarrollo había un contenedor de testing corriendo en el mismo puerto que Grafana. Fue necesario detenerlo antes de levantar el compose productivo. No es un problema del sistema sino de convivencia entre entornos en la misma máquina.
+
+### Captura del dashboard RED
+
+![Dashboard RED - Tráfico y Errores](./evidencias/Dashboard%20RED%20de%20Alentapp%20API%20(Parte%20Superior).jpeg)
+
+![Dashboard RED - Latencia y Memoria](./evidencias/Dashboard%20RED%20de%20Alentapp%20API%20(Parte%20Inferior).jpeg)
