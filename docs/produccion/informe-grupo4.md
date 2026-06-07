@@ -146,3 +146,123 @@ Se valido que el contenedor queda `healthy` y que nginx responde correctamente e
 ```text
 http://127.0.0.1:80/
 ```
+## 4.2. Verificacion de seguridad
+
+### API con usuario no-root
+
+Comando:
+
+```bash
+docker exec alentapp-api-prod id
+```
+
+Resultado:
+
+```text
+uid=1000(node) gid=1000(node) groups=1000(node)
+```
+
+Conclusion: la API corre con el usuario `node`, no con `root`.
+
+### Herramientas ausentes en la imagen final
+
+Comando:
+
+```bash
+docker exec alentapp-api-prod sh -c "which npm || echo 'npm no esta instalado'; which npx || echo 'npx no esta instalado'; which tsc || echo 'tsc no esta instalado'; which python || echo 'python no esta instalado'; which python3 || echo 'python3 no esta instalado'"
+```
+
+Resultado:
+
+```text
+npm no esta instalado
+npx no esta instalado
+tsc no esta instalado
+python no esta instalado
+python3 no esta instalado
+```
+
+Conclusion: la imagen final no contiene herramientas de desarrollo o scripting innecesarias.
+
+### Filesystem read-only
+
+Comando:
+
+```bash
+docker exec alentapp-api-prod sh -c "touch /test 2>/dev/null && echo 'filesystem escribible' || echo 'filesystem read-only confirmado'"
+```
+
+Resultado:
+
+```text
+filesystem read-only confirmado
+```
+
+Conclusion: el filesystem del contenedor de la API esta en modo solo lectura.
+
+### Capabilities minimas
+
+Comando:
+
+```bash
+docker exec alentapp-api-prod sh -c "ping -c 1 127.0.0.1 >/dev/null 2>&1 && echo 'ping permitido' || echo 'ping bloqueado/no disponible'; mount -t tmpfs tmpfs /mnt >/dev/null 2>&1 && echo 'mount permitido' || echo 'mount bloqueado'"
+```
+
+Resultado:
+
+```text
+ping bloqueado/no disponible
+mount bloqueado
+```
+
+Tambien se inspecciono la configuracion del contenedor:
+
+```bash
+docker inspect alentapp-api-prod --format 'Readonly={{.HostConfig.ReadonlyRootfs}} CapDrop={{json .HostConfig.CapDrop}} CapAdd={{json .HostConfig.CapAdd}} SecurityOpt={{json .HostConfig.SecurityOpt}} User={{json .Config.User}}'
+```
+
+Resultado:
+
+```text
+Readonly=true CapDrop=["ALL"] CapAdd=null SecurityOpt=["no-new-privileges=true"] User="node"
+```
+
+Conclusion: la API corre con capabilities reducidas, sin capabilities agregadas y con `no-new-privileges=true`.
+
+### Variables sensibles via `.env`
+
+En `docker-compose.prod.yml` no se escriben credenciales directamente. Se usan variables requeridas:
+
+```yaml
+POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+```
+
+El archivo `.env.example` solo contiene valores de ejemplo para documentar que variables se necesitan.
+
+Conclusion: las variables sensibles se leen desde entorno externo y no quedan hardcodeadas en el compose productivo.
+
+### Healthchecks funcionando
+
+Se verifico con `docker ps` que los servicios principales quedan en estado `healthy`:
+
+```text
+alentapp-web-prod  Up ... (healthy)
+alentapp-api-prod  Up ... (healthy)
+alentapp-db-prod   Up ... (healthy)
+```
+
+Tambien se valido manualmente:
+
+```bash
+docker exec alentapp-api-prod node -e "fetch('http://127.0.0.1:3000/health').then(async r => { console.log(r.status); console.log(await r.text()) })"
+```
+
+Resultado:
+
+```text
+200
+{"status":"ok"}
+```
