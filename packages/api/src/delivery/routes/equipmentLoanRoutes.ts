@@ -38,7 +38,7 @@ export async function equipmentLoanRoutes(
         validateSchema(createEquipmentLoanSchema)
       ]
     },
-    (request, reply) => controller.create(request, reply)
+    (request, reply) => controller.create(request as any, reply)
   );
 
   fastify.patch(
@@ -53,7 +53,7 @@ export async function equipmentLoanRoutes(
         validateSchema(returnEquipmentLoanSchema)
       ]
     },
-    (request, reply) => controller.returnLoan(request, reply)
+    (request, reply) => controller.returnLoan(request as any, reply)
   );
 
   fastify.patch(
@@ -65,6 +65,6 @@ export async function equipmentLoanRoutes(
         validateSchema(cancelEquipmentLoanSchema)
       ]
     },
-    (request, reply) => controller.cancelLoan(request, reply)
+    (request, reply) => controller.cancelLoan(request as any, reply)
   );
 }

@@ -4,7 +4,7 @@ import {
     InvalidStatusError,
     MissingNotesError
 } from '../../domain/errors/EquipmentLoanErrors.js';
-import { ReturnEquipmentLoanRequestDto, EquipmentLoanResponseDto } from '@alentapp/shared/dtos/equipment-loan.dto';
+import { ReturnEquipmentLoanRequestDto, EquipmentLoanResponseDto } from '@alentapp/shared/dtos/equipment-loan.dto.js';
 import { EquipmentLoanMapper } from '../mappers/EquipmentLoanMapper.js';
 
 export class ReturnEquipmentLoanUseCase {
