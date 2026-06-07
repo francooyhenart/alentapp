@@ -1,3 +1,5 @@
+import './infrastructure/telemetry.js';
+import { recordRequestStart, recordRequestEnd } from './infrastructure/telemetry.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
@@ -71,6 +73,28 @@ export function buildApp() {
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
         credentials: true,
+    });
+
+    // ==========================================
+    // HOOKS DE TELEMETRIA - METRICAS RED
+    // ==========================================
+
+    server.addHook('onRequest', async (request) => {
+        (request as unknown as { _telemetryStart: bigint })._telemetryStart = process.hrtime.bigint();
+        recordRequestStart();
+    });
+
+    server.addHook('onResponse', async (request, reply) => {
+        const start = (request as unknown as { _telemetryStart?: bigint })._telemetryStart;
+        const durationMs = start
+            ? Number(process.hrtime.bigint() - start) / 1_000_000
+            : 0;
+
+        const method = request.method;
+        const route = request.routeOptions?.url ?? request.url;
+        const status = String(reply.statusCode);
+
+        recordRequestEnd({ method, route, status }, durationMs);
     });
 
     const memberRepo = new PostgresMemberRepository();
