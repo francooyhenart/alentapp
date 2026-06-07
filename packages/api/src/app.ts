@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { z } from 'zod';
@@ -240,14 +242,22 @@ export function buildApp() {
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
     server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
 
-    server.get('/', async (req, rep) => {
+    server.get('/health', async (_req, rep) => {
+        rep.status(200).send({ status: 'ok' });
+    });
+
+    server.get('/', async (_req, rep) => {
         rep.status(200).send({ msg: 'asd' })
     });
 
     return server;
 }
 
-if (process.argv[1] && process.argv[1].endsWith('app.ts')) {
+const currentFilePath = fileURLToPath(import.meta.url);
+const executedFilePath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+const isDirectExecution = executedFilePath === currentFilePath;
+
+if (isDirectExecution) {
     const server = buildApp();
     const port = parseInt(process.env.PORT || '3000', 10);
 
