@@ -48,7 +48,7 @@ export function LockersView() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNumber || !newLocation) return alert("Por favor completá todos los campos");
 
