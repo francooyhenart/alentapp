@@ -396,7 +396,218 @@ API Fastify (puerto 3000)
 
 Todos los servicios corren en la misma red Docker interna `alentapp-prod`. Prometheus accede a la API por nombre de servicio (`api:9464`), sin exponer puertos innecesarios al exterior.
 
+## 4.4. Documentacion de decisiones
+
+### Arquitectura final
+
+La arquitectura productiva quedo compuesta por:
+
+text
+Usuario
+  |
+  v
+Frontend nginx (alentapp-web-prod)
+  |
+  v
+API Fastify compilada (alentapp-api-prod)
+  |
+  v
+PostgreSQL (alentapp-db-prod)
+
+
+Antes de iniciar la API se ejecuta un job temporal:#### Multi-stage build para API
+
+Se eligio multi-stage build para separar:
+
+- instalacion de dependencias,
+- compilacion TypeScript,
+- generacion de Prisma Client,
+- runtime final.
+
+Esto permitio reducir la imagen de API de 1.54GB a 394MB.
+
+#### Runtime API sin Prisma CLI
+
+La API productiva no incluye Prisma CLI. Prisma CLI se usa solamente en el servicio migrate.
+
+Esta decision evita agrandar la imagen runtime de la API.
+
+#### Servicio migrate
+
+Se agrego un servicio temporal para ejecutar:
+
+bash
+prisma migrate deploy
+
+
+Esto evita que la API arranque contra una base sin tablas.
+
+#### nginx para frontend
+
+Se reemplazo Vite en produccion por nginx.
+
+Motivos:
+
+- menor tamano de imagen,
+- mejor servidor para archivos estaticos,
+- soporte para gzip,
+- cache de assets,
+- security headers,
+- puerto productivo 80.
+
+#### Seguridad en Compose
+
+Se aplicaron:
+
+- read_only: true,
+- cap_drop: ALL,
+- no-new-privileges=true,
+- tmpfs para directorios temporales,
+- variables desde entorno externo.
+
+### Problemas encontrados
+
+#### Imagen API demasiado grande
+
+La imagen inicial de API seguia pesando mas de lo esperado porque se copiaba un node_modules de workspace con dependencias innecesarias.
+
+Solucion:
+
+- crear una etapa runtime-deps,
+- instalar solo dependencias productivas,
+- podar paquetes no necesarios,
+- conservar las partes de Prisma necesarias para runtime.
+
+#### Prisma fallaba al consultar
+
+En una primera poda se elimino demasiado de Prisma. La API arrancaba, pero los endpoints que consultaban la base devolvian error.
+
+Solucion:
+
+- restaurar paquetes necesarios para el cliente Prisma generado,
+- validar /api/v1/sports y el resto de endpoints.
+
+#### Base productiva sin tablas
+
+La API devolvia error porque la tabla sports no existia en la DB productiva.
+
+Solucion:
+
+- agregar servicio migrate,
+- hacer que la API espere a migrate con condition: service_completed_successfully.
+
+#### npm y ping presentes en runtime
+
+La imagen final de Node todavia traia npm, npx y binarios de ping.
+
+Solucion:
+
+- eliminarlos explicitamente en la etapa final del Dockerfile de API.
+
+text
+migrate -> prisma migrate deploy -> db
+
+
+El orden de arranque queda:
+
+1. db inicia.
+2. db queda healthy.
+3. migrate aplica migraciones.
+4. migrate termina con Exited (0).
+5. api inicia.
+6. api queda healthy.
+7. web inicia.
+8. web queda healthy.
+
 ### Decisiones técnicas — infraestructura Docker
+#### Multi-stage build para API
+
+Se eligio multi-stage build para separar:
+
+- instalacion de dependencias,
+- compilacion TypeScript,
+- generacion de Prisma Client,
+- runtime final.
+
+Esto permitio reducir la imagen de API de 1.54GB a 394MB.
+
+#### Runtime API sin Prisma CLI
+
+La API productiva no incluye Prisma CLI. Prisma CLI se usa solamente en el servicio migrate.
+
+Esta decision evita agrandar la imagen runtime de la API.
+
+#### Servicio migrate
+
+Se agrego un servicio temporal para ejecutar:
+
+bash
+prisma migrate deploy
+
+
+Esto evita que la API arranque contra una base sin tablas.
+
+#### nginx para frontend
+
+Se reemplazo Vite en produccion por nginx.
+
+Motivos:
+
+- menor tamano de imagen,
+- mejor servidor para archivos estaticos,
+- soporte para gzip,
+- cache de assets,
+- security headers,
+- puerto productivo 80.
+
+#### Seguridad en Compose
+
+Se aplicaron:
+
+- read_only: true,
+- cap_drop: ALL,
+- no-new-privileges=true,
+- tmpfs para directorios temporales,
+- variables desde entorno externo.
+
+### Problemas encontrados
+
+#### Imagen API demasiado grande
+
+La imagen inicial de API seguia pesando mas de lo esperado porque se copiaba un node_modules de workspace con dependencias innecesarias.
+
+Solucion:
+
+- crear una etapa runtime-deps,
+- instalar solo dependencias productivas,
+- podar paquetes no necesarios,
+- conservar las partes de Prisma necesarias para runtime.
+
+#### Prisma fallaba al consultar
+
+En una primera poda se elimino demasiado de Prisma. La API arrancaba, pero los endpoints que consultaban la base devolvian error.
+
+Solucion:
+
+- restaurar paquetes necesarios para el cliente Prisma generado,
+- validar /api/v1/sports y el resto de endpoints.
+
+#### Base productiva sin tablas
+
+La API devolvia error porque la tabla sports no existia en la DB productiva.
+
+Solucion:
+
+- agregar servicio migrate,
+- hacer que la API espere a migrate con condition: service_completed_successfully.
+
+#### npm y ping presentes en runtime
+
+La imagen final de Node todavia traia npm, npx y binarios de ping.
+
+Solucion:
+
+- eliminarlos explicitamente en la etapa final del Dockerfile de API.
 
 **Multi-stage build para las imágenes**
 
